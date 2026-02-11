@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selfspeak - Reflect. Align.</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <h1 class="logo">Selfspeak</h1>
+            <p class="tagline">Reflect. Align.</p>
+        </div>
+        <div class="nav-right">
+            <span class="badge-free">Free</span>
+            <div class="user-avatar">
+                <img src="https://via.placeholder.com/40/8B9D9A/FFFFFF?text=U" alt="User Avatar">
+            </div>
+            <button class="menu-dropdown">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Main Journal Card -->
+        <div class="journal-card">
+            <div class="card-header">
+                <h2 class="current-date">Monday · Feb 12</h2>
+            </div>
+
+            <div class="journal-input-area">
+                <textarea
+                    id="journalText"
+                    class="journal-textarea"
+                    placeholder="What feels present today?"
+                    rows="8"
+                ></textarea>
+            </div>
+
+            <div class="card-footer">
+                <div class="footer-left">
+                    <span class="word-count">0 words</span>
+                </div>
+                <div class="footer-right">
+                    <button class="audio-toggle-btn" id="audioToggle">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 4C10 2.89543 9.10457 2 8 2C6.89543 2 6 2.89543 6 4V10C6 11.1046 6.89543 12 8 12C9.10457 12 10 11.1046 10 10V4Z" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M4 9V10C4 12.7614 6.23858 15 9 15V15C11.7614 15 14 12.7614 14 10V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M9 15V18M9 18H6M9 18H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-secondary">Save</button>
+                    <button class="btn btn-primary" id="analyzeBtn">Analyze</button>
+                </div>
+            </div>
+
+            <div class="usage-text">
+                <span>1 of 2 analyses used this week</span>
+            </div>
+
+            <!-- Audio Dropdown (Hidden by default) -->
+            <div class="audio-dropdown" id="audioDropdown">
+                <div class="audio-option" data-mode="focus">
+                    <span>Focus</span>
+                    <button class="play-btn" data-mode="focus">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4 3L12 8L4 13V3Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="audio-option" data-mode="relax">
+                    <span>Relax</span>
+                    <button class="play-btn" data-mode="relax">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4 3L12 8L4 13V3Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="audio-option" data-mode="sleep">
+                    <span>Sleep</span>
+                    <button class="play-btn" data-mode="sleep">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4 3L12 8L4 13V3Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Section (Hidden by default) -->
+        <div class="analysis-section" id="analysisSection">
+            <h3 class="analysis-title">Today's Mental Shape</h3>
+
+            <div class="chart-container">
+                <canvas id="radarChart" width="400" height="400"></canvas>
+            </div>
+
+            <div class="metadata-badges">
+                <div class="badge badge-metadata">
+                    <span class="badge-label">Dominant Emotion</span>
+                    <span class="badge-value">Hopeful</span>
+                </div>
+                <div class="badge badge-metadata">
+                    <span class="badge-label">Tone</span>
+                    <span class="badge-value">Reflective</span>
+                </div>
+                <div class="badge badge-metadata">
+                    <span class="badge-label">Goal Present</span>
+                    <span class="badge-value">Yes</span>
+                </div>
+                <div class="badge badge-metadata">
+                    <span class="badge-label">Self-Doubt Present</span>
+                    <span class="badge-value">Minimal</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <!-- Frontend API Integration -->
+    <script src="frontend-integration.js"></script>
+    <!-- Main UI Script -->
+    <script src="script.js"></script>
+</body>
+</html>
