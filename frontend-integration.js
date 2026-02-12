@@ -1,7 +1,7 @@
 // API Integration for Selfspeak Frontend
 // Add this file to your frontend to connect with the backend
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8585';
 
 // API Client Class
 class SelfSpeakAPI {

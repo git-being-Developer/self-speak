@@ -4,6 +4,8 @@
 
 // Supabase client is initialized in supabase-client.js
 // Access it via window.supabase
+(function(){
+'use strict';
 let supabase;
 
 // Check authentication on page load
@@ -430,4 +432,5 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Load today's journal data
         await loadTodayData();
     }
-});
+})
+})();
