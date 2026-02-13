@@ -1,16 +1,60 @@
 // ============================================
-// Authentication & Session Management
+// Selfspeak Frontend - Main Application Logic
 // ============================================
 
-// Supabase client is initialized in supabase-client.js
-// Access it via window.supabase
-(function(){
-'use strict';
-let supabase;
+// ============================================
+// State Management
+// ============================================
 
-// Check authentication on page load
+// Supabase client is already initialized in supabase-client.js as window.supabase
+// We'll access it directly without redeclaring
+
+let appState = {
+    currentDate: new Date(),
+    selectedDate: new Date(),
+    journalCache: new Map(), // Map<dateString, {journal, analysis}>
+    cacheRange: { start: null, end: null },
+    usage: { used: 0, limit: 2 },
+    user: null,
+};
+
+// ============================================
+// Date Utilities
+// ============================================
+function formatDate(date) {
+    const options = { weekday: 'long', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options).replace(',', ' ·');
+}
+
+function toDateString(date) {
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+function parseDate(dateString) {
+    return new Date(dateString + 'T00:00:00');
+}
+
+function addDays(date, days) {
+    const newDate = new Date(date);
+    newDate.setDate(newDate.getDate() + days);
+    return newDate;
+}
+
+function isSameDay(date1, date2) {
+    return toDateString(date1) === toDateString(date2);
+}
+
+function get7DayRange(centerDate) {
+    const start = addDays(centerDate, -3);
+    const end = addDays(centerDate, 3);
+    return { start, end };
+}
+
+// ============================================
+// Authentication
+// ============================================
 async function checkAuth() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const { data: { session }, error } = await window.supabase.auth.getSession();
 
     if (!session) {
         console.log('No active session, redirecting to login...');
@@ -19,6 +63,7 @@ async function checkAuth() {
     }
 
     console.log('✅ User authenticated:', session.user.email);
+    appState.user = session.user;
 
     // Set token for API calls
     api.setToken(session.access_token);
@@ -29,84 +74,236 @@ async function checkAuth() {
     return session;
 }
 
-// Update user profile in UI
 function updateUserProfile(user) {
-    const avatarImg = document.querySelector('.user-avatar img');
+    const avatarImg = document.getElementById('userAvatar');
     if (user.user_metadata?.avatar_url) {
         avatarImg.src = user.user_metadata.avatar_url;
+    } else if (user.user_metadata?.picture) {
+        avatarImg.src = user.user_metadata.picture;
     }
-    console.log('User profile updated');
 }
 
-// Load today's data from backend
-async function loadTodayData() {
+async function handleLogout() {
     try {
-        console.log('📥 Loading today\'s journal data...');
-        const data = await api.getTodayJournal();
+        console.log('🔓 Logging out...');
 
-        console.log('Received data:', data);
+        // Sign out from Supabase
+        await window.supabase.auth.signOut();
 
-        // Populate journal entry if exists
-        if (data.journal_entry) {
-            journalText.value = data.journal_entry.content;
-            journalText.dispatchEvent(new Event('input')); // Trigger word count update
-            console.log('✅ Journal entry loaded');
-        }
+        // Clear local state
+        appState = {
+            currentDate: new Date(),
+            selectedDate: new Date(),
+            journalCache: new Map(),
+            cacheRange: { start: null, end: null },
+            usage: { used: 0, limit: 2 },
+            user: null,
+        };
 
-        // Show analysis if exists
-        if (data.analysis) {
-            displayAnalysis(data.analysis);
-            console.log('✅ Analysis loaded');
-        }
+        // Clear localStorage
+        localStorage.removeItem('selfspeak_session');
 
-        // Update usage display
-        if (data.usage) {
-            const usageText = document.querySelector('.usage-text');
-            usageText.textContent = `${data.usage.analyses_used} of ${data.usage.weekly_limit} analyses used this week`;
-        }
-
+        // Redirect to login
+        window.location.href = '/login.html';
     } catch (error) {
-        console.error('❌ Failed to load today\'s data:', error);
-        showNotification('Failed to load journal data', 'error');
+        console.error('❌ Logout failed:', error);
+        showNotification('Failed to logout', 'error');
     }
 }
 
-// Word Count Functionality
-const journalText = document.getElementById('journalText');
-const wordCountDisplay = document.querySelector('.word-count');
+// ============================================
+// Data Loading
+// ============================================
+async function loadDateRange(startDate, endDate) {
+    try {
+        const startStr = toDateString(startDate);
+        const endStr = toDateString(endDate);
 
-journalText.addEventListener('input', function() {
-    const text = this.value.trim();
-    const wordCount = text === '' ? 0 : text.split(/\s+/).length;
-    wordCountDisplay.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+        console.log(`📥 Loading range: ${startStr} to ${endStr}`);
 
-    // Auto-resize textarea
-    this.style.height = 'auto';
-    this.style.height = Math.max(240, this.scrollHeight) + 'px';
-});
+        const data = await api.getJournalRange(startStr, endStr);
 
-// Audio Toggle Functionality
-const audioToggle = document.getElementById('audioToggle');
-const audioDropdown = document.getElementById('audioDropdown');
+        // Update cache
+        appState.cacheRange = { start: startDate, end: endDate };
 
-audioToggle.addEventListener('click', function(e) {
-    e.stopPropagation();
-    audioDropdown.classList.toggle('active');
-    this.classList.toggle('active');
-});
+        // Clear and repopulate cache for this range
+        data.entries.forEach(entry => {
+            const dateStr = entry.journal_entry.entry_date;
+            appState.journalCache.set(dateStr, {
+                journal: entry.journal_entry,
+                analysis: entry.analysis
+            });
+        });
 
-// Close audio dropdown when clicking outside
-document.addEventListener('click', function(e) {
-    if (!audioDropdown.contains(e.target) && e.target !== audioToggle) {
-        audioDropdown.classList.remove('active');
-        audioToggle.classList.remove('active');
+        // Update usage
+        if (data.usage) {
+            appState.usage = data.usage;
+            updateUsageDisplay();
+        }
+
+        console.log(`✅ Loaded ${data.entries.length} entries`);
+        return data;
+    } catch (error) {
+        console.error('❌ Failed to load date range:', error);
+        throw error;
     }
-});
+}
 
-// Save Button Functionality
-const saveBtn = document.getElementById('saveBtn');
+async function loadCurrentDateData() {
+    const selectedDateStr = toDateString(appState.selectedDate);
 
-saveBtn.addEventListener('click', async function() {
+    // Check cache first
+    if (appState.journalCache.has(selectedDateStr)) {
+        const cached = appState.journalCache.get(selectedDateStr);
+        displayJournalData(cached.journal, cached.analysis);
+        return;
+    }
+
+    // Load 7-day window
+    const range = get7DayRange(appState.selectedDate);
+
+    try {
+        await loadDateRange(range.start, range.end);
+
+        // Display data for selected date
+        const data = appState.journalCache.get(selectedDateStr);
+        displayJournalData(data?.journal || null, data?.analysis || null);
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        displayJournalData(null, null);
+    }
+}
+
+// ============================================
+// UI Rendering
+// ============================================
+function displayJournalData(journal, analysis) {
+    const journalText = document.getElementById('journalText');
+    const analysisSection = document.getElementById('analysisSection');
+
+    // Clear previous state
+    journalText.value = '';
+    analysisSection.classList.remove('active');
+
+    // State 1: No journal
+    if (!journal) {
+        journalText.value = '';
+        journalText.placeholder = 'What feels present today?';
+        journalText.disabled = false;
+        journalText.dispatchEvent(new Event('input')); // Update word count
+        console.log('📝 No journal for this date');
+        return;
+    }
+
+    // State 2: Journal exists
+    journalText.value = journal.content || '';
+    journalText.placeholder = 'What feels present today?';
+    journalText.disabled = false;
+    journalText.dispatchEvent(new Event('input')); // Update word count
+    console.log('✅ Journal loaded');
+
+    // State 3: Journal with analysis
+    if (analysis) {
+        displayAnalysis(analysis);
+        console.log('✅ Analysis loaded');
+    }
+}
+
+function displayAnalysis(analysis) {
+    if (!analysis) return;
+
+    const analysisSection = document.getElementById('analysisSection');
+
+    // Show analysis section
+    analysisSection.classList.add('active');
+
+    // Update metadata badges safely
+    updateMetadataBadges(analysis);
+
+    // Generate radar chart
+    setTimeout(() => {
+        generateRadarChart([
+            analysis.confidence_score || 0,
+            analysis.abundance_score || 0,
+            analysis.clarity_score || 0,
+            analysis.gratitude_score || 0,
+            analysis.resistance_score || 0
+        ]);
+    }, 300);
+
+    // Scroll to analysis
+    setTimeout(() => {
+        analysisSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+function updateMetadataBadges(analysis) {
+    const badges = document.querySelectorAll('.badge-metadata');
+
+    if (badges[0]) {
+        badges[0].querySelector('.badge-value').textContent = analysis.dominant_emotion || 'N/A';
+    }
+    if (badges[1]) {
+        badges[1].querySelector('.badge-value').textContent = analysis.overall_tone || 'N/A';
+    }
+    if (badges[2]) {
+        badges[2].querySelector('.badge-value').textContent = analysis.goal_present ? 'Yes' : 'No';
+    }
+    if (badges[3]) {
+        badges[3].querySelector('.badge-value').textContent = analysis.self_doubt_present ? 'Present' : 'Minimal';
+    }
+}
+
+function updateDateDisplay() {
+    const dateElement = document.querySelector('.current-date');
+    dateElement.textContent = formatDate(appState.selectedDate);
+
+    // Update navigation buttons state
+    const nextBtn = document.getElementById('nextDate');
+    const isToday = isSameDay(appState.selectedDate, appState.currentDate);
+
+    // Disable next button if viewing today
+    if (nextBtn) {
+        nextBtn.disabled = isToday;
+    }
+}
+
+function updateUsageDisplay() {
+    const usageText = document.querySelector('.usage-text span');
+    if (usageText && appState.usage) {
+        usageText.textContent = `${appState.usage.used} of ${appState.usage.limit} analyses used this week`;
+    }
+
+    // Disable analyze button if limit reached
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    if (analyzeBtn && appState.usage.used >= appState.usage.limit) {
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = 'Limit Reached';
+        analyzeBtn.title = 'Weekly limit reached. Resets next Monday.';
+    } else if (analyzeBtn) {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = 'Analyze';
+        analyzeBtn.title = '';
+    }
+}
+
+// ============================================
+// Date Navigation
+// ============================================
+async function navigateDate(direction) {
+    // direction: -1 for previous, +1 for next
+    appState.selectedDate = addDays(appState.selectedDate, direction);
+
+    updateDateDisplay();
+    await loadCurrentDateData();
+}
+
+// ============================================
+// Journal Actions
+// ============================================
+async function saveJournal() {
+    const journalText = document.getElementById('journalText');
+    const saveBtn = document.getElementById('saveBtn');
     const content = journalText.value.trim();
 
     if (!content) {
@@ -115,127 +312,86 @@ saveBtn.addEventListener('click', async function() {
     }
 
     // Disable button during save
-    this.disabled = true;
-    this.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
 
     try {
         console.log('💾 Saving journal entry...');
-        const saved = await api.saveJournal(content);
+        const result = await api.saveJournal(content);
 
-        console.log('✅ Journal saved:', saved);
+        console.log('✅ Journal saved:', result);
+
+        // Update cache
+        const selectedDateStr = toDateString(appState.selectedDate);
+        const existingData = appState.journalCache.get(selectedDateStr) || {};
+        appState.journalCache.set(selectedDateStr, {
+            journal: result.data,
+            analysis: existingData.analysis || null
+        });
+
         showNotification('Journal saved successfully', 'success');
-
     } catch (error) {
         console.error('❌ Save failed:', error);
-        showNotification('Failed to save journal', 'error');
+        showNotification(error.message || 'Failed to save journal', 'error');
     } finally {
-        // Re-enable button
-        this.disabled = false;
-        this.textContent = 'Save';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
     }
-});
+}
 
-// Play/Stop Audio Toggle
-const playButtons = document.querySelectorAll('.play-btn');
-let currentlyPlaying = null;
+async function analyzeJournal() {
+    const analyzeBtn = document.getElementById('analyzeBtn');
 
-playButtons.forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-
-        // Stop currently playing if different
-        if (currentlyPlaying && currentlyPlaying !== this) {
-            currentlyPlaying.classList.remove('playing');
-        }
-
-        // Toggle current button
-        this.classList.toggle('playing');
-
-        // Update currently playing reference
-        currentlyPlaying = this.classList.contains('playing') ? this : null;
-
-        const mode = this.getAttribute('data-mode');
-        console.log(`${this.classList.contains('playing') ? 'Playing' : 'Stopped'} ${mode} mode`);
-    });
-});
-
-// Analyze Button Functionality
-const analyzeBtn = document.getElementById('analyzeBtn');
-const analysisSection = document.getElementById('analysisSection');
-let chartInstance = null;
-
-analyzeBtn.addEventListener('click', async function() {
     // Disable button during processing
-    this.disabled = true;
-    this.textContent = 'Analyzing...';
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = 'Analyzing...';
 
     try {
         console.log('🔍 Requesting analysis...');
-        const analysis = await api.analyzeJournal();
+        const result = await api.analyzeJournal();
 
-        console.log('✅ Analysis received:', analysis);
+        console.log('✅ Analysis received:', result);
+
+        // Update cache
+        const selectedDateStr = toDateString(appState.selectedDate);
+        const existingData = appState.journalCache.get(selectedDateStr) || {};
+        appState.journalCache.set(selectedDateStr, {
+            journal: existingData.journal,
+            analysis: result.data
+        });
+
+        // Update usage
+        if (result.usage) {
+            appState.usage = result.usage;
+            updateUsageDisplay();
+        }
 
         // Display the analysis
-        displayAnalysis(analysis);
+        displayAnalysis(result.data);
 
-        // Show success notification
         showNotification('Analysis complete!', 'success');
-
     } catch (error) {
         console.error('❌ Analysis failed:', error);
 
-        if (error.message.includes('Weekly limit')) {
+        const errorMsg = error.message || '';
+        if (errorMsg.includes('limit reached') || errorMsg.includes('429')) {
             showNotification('Weekly analysis limit reached. Resets next Monday.', 'warning');
-        } else if (error.message.includes('No journal entry')) {
-            showNotification('Please write something in your journal first.', 'warning');
+        } else if (errorMsg.includes('No journal entry') || errorMsg.includes('404')) {
+            showNotification('Please save a journal entry first.', 'warning');
         } else {
             showNotification('Analysis failed. Please try again.', 'error');
         }
     } finally {
-        // Re-enable button
-        this.disabled = false;
-        this.textContent = 'Analyze';
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = 'Analyze';
     }
-});
-
-// Display analysis results
-function displayAnalysis(analysis) {
-    // Show analysis section with animation
-    analysisSection.classList.add('active');
-
-    // Update metadata badges
-    updateMetadataBadges(analysis);
-
-    // Scroll to analysis section smoothly
-    setTimeout(() => {
-        analysisSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 100);
-
-    // Generate radar chart with actual data
-    setTimeout(() => {
-        generateRadarChart([
-            analysis.confidence_score,
-            analysis.abundance_score,
-            analysis.clarity_score,
-            analysis.gratitude_score,
-            analysis.resistance_score
-        ]);
-    }, 300);
 }
 
-// Update metadata badges
-function updateMetadataBadges(analysis) {
-    const badges = document.querySelectorAll('.badge-metadata');
 
-    badges[0].querySelector('.badge-value').textContent = analysis.dominant_emotion;
-    badges[1].querySelector('.badge-value').textContent = analysis.overall_tone;
-    badges[2].querySelector('.badge-value').textContent = analysis.goal_present ? 'Yes' : 'No';
-    badges[3].querySelector('.badge-value').textContent = analysis.self_doubt_present ? 'Present' : 'Minimal';
-}
-
-// Show notification
+// ============================================
+// Notifications
+// ============================================
 function showNotification(message, type = 'info') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
@@ -254,19 +410,20 @@ function showNotification(message, type = 'info') {
 
     document.body.appendChild(notification);
 
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-// Radar Chart Generation
+// ============================================
+// Radar Chart
+// ============================================
 function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
     const canvas = document.getElementById('radarChart');
-    const ctx = canvas.getContext('2d');
+    if (!canvas) return;
 
-    // Clear previous chart
+    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width / 2;
@@ -274,7 +431,6 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
     const radius = 140;
     const axes = 5;
     const labels = ['Confidence', 'Abundance', 'Clarity', 'Gratitude', 'Resistance'];
-
 
     // Draw background circles
     ctx.strokeStyle = 'rgba(139, 157, 154, 0.1)';
@@ -287,7 +443,6 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
 
     // Draw axes
     ctx.strokeStyle = 'rgba(139, 157, 154, 0.15)';
-    ctx.lineWidth = 1;
     for (let i = 0; i < axes; i++) {
         const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
         const x = centerX + Math.cos(angle) * radius;
@@ -312,17 +467,14 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
 
     // Animate data polygon
     let animationProgress = 0;
-    const animationDuration = 1000; // 1 second
+    const animationDuration = 1000;
     const startTime = Date.now();
 
     function animate() {
         const elapsed = Date.now() - startTime;
         animationProgress = Math.min(elapsed / animationDuration, 1);
-
-        // Easing function for smooth animation
         const easeProgress = 1 - Math.pow(1 - animationProgress, 3);
 
-        // Clear only the data area
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Redraw background
@@ -334,7 +486,7 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
             ctx.stroke();
         }
 
-        // Redraw axes
+        // Redraw axes and labels
         ctx.strokeStyle = 'rgba(139, 157, 154, 0.15)';
         for (let i = 0; i < axes; i++) {
             const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
@@ -346,7 +498,6 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
             ctx.lineTo(x, y);
             ctx.stroke();
 
-            // Redraw labels
             const labelDistance = radius + 30;
             const labelX = centerX + Math.cos(angle) * labelDistance;
             const labelY = centerY + Math.sin(angle) * labelDistance;
@@ -358,7 +509,7 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
             ctx.fillText(labels[i], labelX, labelY);
         }
 
-        // Draw data polygon with animation
+        // Draw data polygon
         ctx.beginPath();
         for (let i = 0; i < axes; i++) {
             const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
@@ -374,11 +525,8 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
         }
         ctx.closePath();
 
-        // Fill
         ctx.fillStyle = 'rgba(123, 158, 157, 0.25)';
         ctx.fill();
-
-        // Stroke
         ctx.strokeStyle = 'rgba(123, 158, 157, 0.8)';
         ctx.lineWidth = 2.5;
         ctx.stroke();
@@ -407,30 +555,110 @@ function generateRadarChart(dataPoints = [72, 65, 80, 85, 35]) {
     animate();
 }
 
-// Initialize
+// ============================================
+// Event Listeners
+// ============================================
 document.addEventListener('DOMContentLoaded', async function() {
-    // Initialize supabase client reference
-    supabase = window.supabase;
-
-    if (!supabase) {
+    // Check if Supabase client is initialized
+    if (!window.supabase) {
         console.error('❌ Supabase client not initialized!');
         alert('Failed to initialize authentication. Please refresh the page.');
         return;
     }
 
-    // Set current date
-    const dateElement = document.querySelector('.current-date');
-    const now = new Date();
-    const options = { weekday: 'long', month: 'short', day: 'numeric' };
-    const formattedDate = now.toLocaleDateString('en-US', options).replace(',', ' ·');
-    dateElement.textContent = formattedDate;
+    console.log('✅ Supabase client available');
 
     // Check authentication
     const session = await checkAuth();
+    if (!session) return;
 
-    if (session) {
-        // Load today's journal data
-        await loadTodayData();
+    // Set initial date display
+    updateDateDisplay();
+
+    // Load initial data
+    await loadCurrentDateData();
+
+    // Setup UI interactions
+    const journalText = document.getElementById('journalText');
+    const wordCountDisplay = document.querySelector('.word-count');
+
+    if (journalText && wordCountDisplay) {
+        journalText.addEventListener('input', function() {
+            const text = this.value.trim();
+            const wordCount = text === '' ? 0 : text.split(/\s+/).length;
+            wordCountDisplay.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+
+            // Auto-resize textarea
+            this.style.height = 'auto';
+            this.style.height = Math.max(240, this.scrollHeight) + 'px';
+        });
     }
-})
-})();
+
+    // Audio toggle
+    const audioToggle = document.getElementById('audioToggle');
+    const audioDropdown = document.getElementById('audioDropdown');
+
+    if (audioToggle && audioDropdown) {
+        audioToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            audioDropdown.classList.toggle('active');
+            this.classList.toggle('active');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!audioDropdown.contains(e.target) && e.target !== audioToggle) {
+                audioDropdown.classList.remove('active');
+                audioToggle.classList.remove('active');
+            }
+        });
+    }
+
+    // Audio play buttons
+    const playButtons = document.querySelectorAll('.play-btn');
+    let currentlyPlaying = null;
+
+    playButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+
+            if (currentlyPlaying && currentlyPlaying !== this) {
+                currentlyPlaying.classList.remove('playing');
+            }
+
+            this.classList.toggle('playing');
+            currentlyPlaying = this.classList.contains('playing') ? this : null;
+
+            const mode = this.getAttribute('data-mode');
+            console.log(`${this.classList.contains('playing') ? 'Playing' : 'Stopped'} ${mode} mode`);
+        });
+    });
+
+    // Attach action event listeners
+    const saveBtn = document.getElementById('saveBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const prevDateBtn = document.getElementById('prevDate');
+    const nextDateBtn = document.getElementById('nextDate');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveJournal);
+    }
+
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', analyzeJournal);
+    }
+
+    if (prevDateBtn) {
+        prevDateBtn.addEventListener('click', () => navigateDate(-1));
+    }
+
+    if (nextDateBtn) {
+        nextDateBtn.addEventListener('click', () => navigateDate(1));
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    console.log('✅ App initialized');
+});

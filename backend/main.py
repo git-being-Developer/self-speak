@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 from supabase import create_client, Client
 import random
@@ -102,6 +102,40 @@ def generate_test_analysis_data() -> Dict[str, Any]:
     }
 
 
+async def get_weekly_usage(user_id: str) -> Dict[str, Any]:
+    """
+    Get weekly usage for user. Always returns normalized object.
+    Returns: { "used": int, "limit": 2 }
+    """
+    week_start = get_week_start()
+    WEEKLY_LIMIT = 2
+
+    try:
+        usage_response = supabase.table("ai_usage").select("*").eq(
+            "user_id", user_id
+        ).eq("week_start", week_start).execute()
+
+        if usage_response.data:
+            usage = usage_response.data[0]
+            return {
+                "used": usage.get("analysis_count", 0),
+                "limit": WEEKLY_LIMIT
+            }
+        else:
+            # No usage record exists, return default
+            return {
+                "used": 0,
+                "limit": WEEKLY_LIMIT
+            }
+    except Exception as e:
+        # On error, return safe default
+        print(f"Error fetching usage: {e}")
+        return {
+            "used": 0,
+            "limit": WEEKLY_LIMIT
+        }
+
+
 # API Endpoints
 
 @app.get("/")
@@ -170,7 +204,6 @@ async def get_today_journal(
     user_id = await get_current_user_id(credentials)
 
     current_date = get_current_date()
-    week_start = get_week_start()
 
     try:
         # Fetch today's journal entry
@@ -189,37 +222,90 @@ async def get_today_journal(
 
             analysis = analysis_response.data[0] if analysis_response.data else None
 
-        # Fetch current week's usage
-        usage_response = supabase.table("ai_usage").select("*").eq(
-            "user_id", user_id
-        ).eq("week_start", week_start).execute()
-
-        # Get or create usage record
-        if usage_response.data:
-            usage = usage_response.data[0]
-        else:
-            # Create initial usage record for this week
-            new_usage = supabase.table("ai_usage").insert({
-                "user_id": user_id,
-                "week_start": week_start,
-                "analysis_count": 0
-            }).execute()
-            usage = new_usage.data[0] if new_usage.data else {"analysis_count": 0}
+        # Get normalized usage
+        usage = await get_weekly_usage(user_id)
 
         return TodayResponse(
             journal_entry=journal_entry,
             analysis=analysis,
-            usage={
-                "count": usage.get("analysis_count", 0),
-                "limit": 2,  # Business logic constant
-                "week_start": week_start
-            }
+            usage=usage
         )
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch today's data: {str(e)}"
+        )
+
+
+@app.get("/journal/range")
+async def get_journal_range(
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format"),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    GET /journal/range?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+
+    Fetch journal entries within date range for authenticated user.
+    Returns entries with their analyses (null if no analysis exists).
+    Always returns normalized usage object.
+    """
+    # Extract user_id from JWT
+    user_id = await get_current_user_id(credentials)
+
+    try:
+        # Validate date format
+        try:
+            datetime.strptime(start_date, "%Y-%m-%d")
+            datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+
+        # Fetch journal entries in range
+        journal_response = supabase.table("journal_entries").select("*").eq(
+            "user_id", user_id
+        ).gte("entry_date", start_date).lte("entry_date", end_date).order(
+            "entry_date", desc=False
+        ).execute()
+
+        entries = journal_response.data or []
+
+        # For each entry, fetch its analysis
+        entries_with_analysis = []
+        for entry in entries:
+            analysis_response = supabase.table("ai_analyses").select("*").eq(
+                "journal_id", entry["id"]
+            ).execute()
+
+            analysis = analysis_response.data[0] if analysis_response.data else None
+
+            entries_with_analysis.append({
+                "journal_entry": entry,
+                "analysis": analysis
+            })
+
+        # Get normalized usage
+        usage = await get_weekly_usage(user_id)
+
+        return {
+            "entries": entries_with_analysis,
+            "usage": usage,
+            "range": {
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch journal range: {str(e)}"
         )
 
 
@@ -376,7 +462,7 @@ async def analyze_journal(
             "message": "Analysis generated successfully",
             "data": analysis_insert.data[0],
             "usage": {
-                "count": current_count + 1,
+                "used": current_count + 1,
                 "limit": WEEKLY_LIMIT
             }
         }
@@ -392,4 +478,4 @@ async def analyze_journal(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8585)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

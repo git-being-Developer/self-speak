@@ -1,7 +1,7 @@
 // API Integration for Selfspeak Frontend
 // Add this file to your frontend to connect with the backend
 
-const API_BASE_URL = 'http://localhost:8585';
+const API_BASE_URL = 'http://localhost:8000';
 
 // API Client Class
 class SelfSpeakAPI {
@@ -73,6 +73,13 @@ class SelfSpeakAPI {
     async analyzeJournal() {
         return await this.request('/journal/analyze', {
             method: 'POST',
+        });
+    }
+
+    // GET /journal/range
+    async getJournalRange(startDate, endDate) {
+        return await this.request(`/journal/range?start_date=${startDate}&end_date=${endDate}`, {
+            method: 'GET',
         });
     }
 }

@@ -468,3 +468,95 @@ body {
 html {
     scroll-behavior: smooth;
 }
+
+/* Date Navigation Buttons */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.date-nav-btn {
+    background: transparent;
+    border: 1px solid rgba(139, 157, 154, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #5A7B7D;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.date-nav-btn:hover {
+    background: rgba(139, 157, 154, 0.1);
+    border-color: rgba(139, 157, 154, 0.3);
+    color: #3D5A5C;
+}
+
+.date-nav-btn:active {
+    transform: scale(0.95);
+}
+
+.date-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.date-nav-btn:disabled:hover {
+    background: transparent;
+    border-color: rgba(139, 157, 154, 0.2);
+}
+
+/* Logout Button */
+.btn-logout {
+    background: transparent;
+    border: 1px solid rgba(139, 157, 154, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #5A7B7D;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-logout:hover {
+    background: rgba(199, 123, 123, 0.1);
+    border-color: rgba(199, 123, 123, 0.3);
+    color: #C77B7B;
+}
+
+.btn-logout:active {
+    transform: scale(0.95);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #B8C5C2;
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #8B9D9A;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
