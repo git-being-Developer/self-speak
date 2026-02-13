@@ -92,10 +92,10 @@ def get_week_start() -> str:
 async def get_weekly_usage(user_id: str) -> Dict[str, Any]:
     """
     Get weekly usage for user. Always returns normalized object.
-    Returns: { "used": int, "limit": 2 }
+    Returns: { "used": int, "limit": 3 }
     """
     week_start = get_week_start()
-    WEEKLY_LIMIT = 2
+    WEEKLY_LIMIT = 3  # 3 analyses per week
 
     try:
         usage_response = supabase.table("ai_usage").select("*").eq(

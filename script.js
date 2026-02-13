@@ -14,7 +14,7 @@ let appState = {
     selectedDate: new Date(),
     journalCache: new Map(), // Map<dateString, {journal, analysis}>
     cacheRange: { start: null, end: null },
-    usage: { used: 0, limit: 2 },
+    usage: { used: 0, limit: 3 },
     user: null,
 };
 
@@ -96,7 +96,7 @@ async function handleLogout() {
             selectedDate: new Date(),
             journalCache: new Map(),
             cacheRange: { start: null, end: null },
-            usage: { used: 0, limit: 2 },
+            usage: { used: 0, limit: 3 },
             user: null,
         };
 

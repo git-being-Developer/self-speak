@@ -21,7 +21,8 @@ class DailyAnalysisService:
 
     def __init__(self, supabase: Client):
         self.supabase = supabase
-        self.WEEKLY_LIMIT = 2
+        self.WEEKLY_LIMIT = 3  # 3 analyses per week
+        self.DAILY_LIMIT = 2   # Maximum 2 per day
 
     def perform_daily_analysis(
         self,
@@ -60,8 +61,19 @@ class DailyAnalysisService:
             self._delete_analysis(existing['id'])
             print(f"🗑️ Deleted existing analysis {existing['id']} for journal {journal_id}")
 
-        # Step 2: Verify weekly quota (only for NEW analyses, not replacements)
+        # Step 2: Verify quota (only for NEW analyses, not replacements)
         week_start = self._get_week_start()
+        current_date = datetime.now().strftime("%Y-%m-%d")
+
+        # Check daily limit
+        daily_usage = self._get_daily_usage(user_id, current_date)
+        if not is_replacement and daily_usage >= self.DAILY_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Daily analysis limit reached ({daily_usage}/{self.DAILY_LIMIT}). Try again tomorrow."
+            )
+
+        # Check weekly limit
         current_usage = self._get_weekly_usage(user_id, week_start)
 
         if not is_replacement and current_usage >= self.WEEKLY_LIMIT:
@@ -133,6 +145,14 @@ class DailyAnalysisService:
         if response.data:
             return response.data[0].get("analysis_count", 0)
         return 0
+
+    def _get_daily_usage(self, user_id: str, date: str) -> int:
+        """Get today's usage count by counting analyses for this date."""
+        response = self.supabase.table("ai_analyses").select("id").eq(
+            "user_id", user_id
+        ).eq("analyzed_at", date).execute()
+
+        return len(response.data) if response.data else 0
 
     def _store_analysis(
         self,
