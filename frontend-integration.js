@@ -82,6 +82,14 @@ class SelfSpeakAPI {
             method: 'GET',
         });
     }
+
+    // GET /dashboard/weekly
+    async getWeeklyDashboard(weekStart = null) {
+        const params = weekStart ? `?week_start=${weekStart}` : '';
+        return await this.request(`/dashboard/weekly${params}`, {
+            method: 'GET',
+        });
+    }
 }
 
 // Create singleton instance

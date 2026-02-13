@@ -11,11 +11,14 @@ import random
 # Import authentication utilities
 from auth_utils import security, get_current_user_id, get_current_user, supabase
 
+# Import services
+from services import create_daily_analysis_service, create_weekly_pattern_service
+
 # Initialize FastAPI
 app = FastAPI(
     title="Selfspeak API",
     description="Backend for Selfspeak journaling application",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -27,6 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize services
+daily_analysis_service = create_daily_analysis_service(supabase)
+weekly_pattern_service = create_weekly_pattern_service(supabase)
 
 # Pydantic Models
 class JournalSaveRequest(BaseModel):
@@ -77,29 +83,6 @@ def get_week_start() -> str:
     today = datetime.now()
     week_start = today - timedelta(days=today.weekday())
     return week_start.strftime("%Y-%m-%d")
-
-
-def generate_test_analysis_data() -> Dict[str, Any]:
-    """
-    Generate realistic test analysis data.
-    In production, this would be replaced by actual AI analysis.
-    """
-    emotions = ["Hopeful", "Calm", "Anxious", "Grateful", "Reflective", "Uncertain", "Motivated"]
-    tones = ["calm", "anxious", "driven", "scattered"]
-    time_horizons = ["short", "long", "vague"]
-
-    return {
-        "confidence_score": random.randint(45, 95),
-        "abundance_score": random.randint(40, 90),
-        "clarity_score": random.randint(50, 95),
-        "gratitude_score": random.randint(55, 98),
-        "resistance_score": random.randint(20, 65),
-        "dominant_emotion": random.choice(emotions),
-        "overall_tone": random.choice(tones),
-        "goal_present": random.choice([True, False]),
-        "self_doubt_present": random.choice([True, False]),
-        "time_horizon": random.choice(time_horizons),
-    }
 
 
 async def get_weekly_usage(user_id: str) -> Dict[str, Any]:
@@ -374,16 +357,15 @@ async def analyze_journal(
     """
     POST /journal/analyze
 
-    Generate analysis for today's journal entry.
+    Layer 1: Daily AI Analysis
+
+    Generate analysis for today's journal entry using clean service architecture.
     Checks weekly usage limit before proceeding.
-    Returns analysis record.
+    Returns analysis record with updated usage.
     """
     # Extract user_id from JWT (never trust client input)
     user_id = await get_current_user_id(credentials)
-
     current_date = get_current_date()
-    week_start = get_week_start()
-    WEEKLY_LIMIT = 2  # Business logic constant
 
     try:
         # Fetch today's journal entry
@@ -399,72 +381,21 @@ async def analyze_journal(
 
         journal_entry = journal_response.data[0]
 
-        # Check if analysis already exists
-        existing_analysis = supabase.table("ai_analyses").select("*").eq(
-            "journal_id", journal_entry["id"]
-        ).execute()
+        # Use daily analysis service (Layer 1)
+        analysis = daily_analysis_service.perform_daily_analysis(
+            user_id=user_id,
+            journal_id=journal_entry["id"],
+            journal_content=journal_entry["content"]
+        )
 
-        if existing_analysis.data:
-            return {
-                "success": True,
-                "message": "Analysis already exists for today's entry",
-                "data": existing_analysis.data[0]
-            }
-
-        # Check weekly usage
-        usage_response = supabase.table("ai_usage").select("*").eq(
-            "user_id", user_id
-        ).eq("week_start", week_start).execute()
-
-        if usage_response.data:
-            usage = usage_response.data[0]
-            current_count = usage.get("analysis_count", 0)
-
-            if current_count >= WEEKLY_LIMIT:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Weekly analysis limit reached ({current_count}/{WEEKLY_LIMIT}). Resets next Monday."
-                )
-        else:
-            # Create usage record
-            new_usage = supabase.table("ai_usage").insert({
-                "user_id": user_id,
-                "week_start": week_start,
-                "analysis_count": 0
-            }).execute()
-            usage = new_usage.data[0] if new_usage.data else None
-            current_count = 0
-
-        # Generate analysis data (test data for now)
-        analysis_data = generate_test_analysis_data()
-
-        # Insert analysis
-        analysis_insert = supabase.table("ai_analyses").insert({
-            "journal_id": journal_entry["id"],
-            "user_id": user_id,
-            **analysis_data,
-            "created_at": datetime.now().isoformat()
-        }).execute()
-
-        if not analysis_insert.data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create analysis record"
-            )
-
-        # Increment usage count
-        supabase.table("ai_usage").update({
-            "analysis_count": current_count + 1
-        }).eq("user_id", user_id).eq("week_start", week_start).execute()
+        # Get updated usage
+        usage = await get_weekly_usage(user_id)
 
         return {
             "success": True,
             "message": "Analysis generated successfully",
-            "data": analysis_insert.data[0],
-            "usage": {
-                "used": current_count + 1,
-                "limit": WEEKLY_LIMIT
-            }
+            "data": analysis,
+            "usage": usage
         }
 
     except HTTPException:
@@ -473,6 +404,62 @@ async def analyze_journal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate analysis: {str(e)}"
+        )
+
+
+@app.get("/dashboard/weekly")
+async def get_weekly_dashboard(
+    week_start: Optional[str] = Query(None, description="Week start date (YYYY-MM-DD), defaults to current week"),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    GET /dashboard/weekly?week_start=YYYY-MM-DD
+
+    Layer 2: Weekly Pattern Analysis
+
+    Generates weekly insight from aggregated daily metadata.
+    Idempotent: Returns cached insight if already generated.
+
+    Returns:
+        {
+            "weekly_insight": {
+                "summary_text": "...",
+                "confidence_trend": "up|down|stable",
+                "resistance_trend": "up|down|stable",
+                "gratitude_trend": "up|down|stable",
+                "dominant_week_emotion": "...",
+                "reflection_question": "..."
+            },
+            "weekly_averages": {
+                "confidence": 75.5,
+                "abundance": 68.2,
+                ...
+            },
+            "trend_data": {...},
+            "entry_count": 5
+        }
+    """
+    # Extract user_id from JWT (never trust client input)
+    user_id = await get_current_user_id(credentials)
+
+    try:
+        # Use weekly pattern service (Layer 2)
+        result = weekly_pattern_service.generate_weekly_insight(
+            user_id=user_id,
+            week_start_date=week_start
+        )
+
+        return {
+            "success": True,
+            "data": result
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate weekly insight: {str(e)}"
         )
 
 
