@@ -62,16 +62,21 @@ class SelfSpeakAPI {
     }
 
     // POST /journal/save
-    async saveJournal(content) {
+    async saveJournal(content, entryDate = null) {
+        const body = { content };
+        if (entryDate) {
+            body.entry_date = entryDate;
+        }
         return await this.request('/journal/save', {
             method: 'POST',
-            body: JSON.stringify({ content }),
+            body: JSON.stringify(body),
         });
     }
 
     // POST /journal/analyze
-    async analyzeJournal() {
-        return await this.request('/journal/analyze', {
+    async analyzeJournal(entryDate = null) {
+        const params = entryDate ? `?entry_date=${entryDate}` : '';
+        return await this.request(`/journal/analyze${params}`, {
             method: 'POST',
         });
     }

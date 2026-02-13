@@ -1,0 +1,676 @@
+/* Landing Page Styles - Selfspeak */
+
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #FAFBFB;
+    color: #2C3E50;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Navigation */
+.nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(250, 251, 251, 0.9);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(139, 157, 154, 0.1);
+    z-index: 1000;
+    padding: 1.5rem 0;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-logo {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #3D5A5C;
+    letter-spacing: -0.3px;
+}
+
+/* Buttons */
+.btn-login {
+    padding: 0.625rem 1.5rem;
+    background: white;
+    border: 1px solid rgba(139, 157, 154, 0.2);
+    border-radius: 12px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #5A7B7D;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-login:hover {
+    background: rgba(139, 157, 154, 0.05);
+    border-color: rgba(139, 157, 154, 0.3);
+}
+
+.btn-primary {
+    padding: 1rem 2.5rem;
+    background: #7B9E9D;
+    border: none;
+    border-radius: 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(123, 158, 157, 0.2);
+}
+
+.btn-primary:hover {
+    background: #6A8D8C;
+    box-shadow: 0 6px 20px rgba(123, 158, 157, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-primary.large {
+    padding: 1.25rem 3rem;
+    font-size: 1.125rem;
+}
+
+.btn-secondary {
+    padding: 1rem 2.5rem;
+    background: white;
+    border: 1px solid rgba(139, 157, 154, 0.25);
+    border-radius: 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #5A7B7D;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: rgba(139, 157, 154, 0.05);
+    border-color: rgba(139, 157, 154, 0.4);
+}
+
+/* Hero Section */
+.hero {
+    padding: 12rem 0 8rem;
+    background: linear-gradient(135deg, #FAFBFB 0%, #F0F4F4 100%);
+}
+
+.hero-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6rem;
+    align-items: center;
+}
+
+.hero-content {
+    max-width: 540px;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 500;
+    color: #2C3E50;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: #5A7B7D;
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+    font-weight: 400;
+}
+
+.hero-cta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Hero Preview */
+.hero-preview {
+    position: relative;
+}
+
+.preview-card {
+    background: white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    box-shadow: 0 8px 32px rgba(139, 157, 154, 0.12);
+    margin-bottom: 1.5rem;
+}
+
+.preview-chart {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.preview-insight {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 16px rgba(139, 157, 154, 0.1);
+}
+
+.insight-mini {
+    padding: 0.5rem 0;
+}
+
+.insight-label {
+    font-size: 0.8125rem;
+    color: #8B9D9A;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.insight-text {
+    font-size: 0.9375rem;
+    color: #3D5A5C;
+    line-height: 1.6;
+}
+
+/* Platform Activity Section */
+.platform-activity {
+    padding: 6rem 0;
+    background: linear-gradient(135deg, #F7F9F9 0%, #EEF2F3 100%);
+}
+
+.section-subtitle {
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #8B9D9A;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 3rem;
+}
+
+.activity-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(139, 157, 154, 0.08);
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.metric-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.metric-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.metric-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(123, 158, 157, 0.15);
+}
+
+.metric-number {
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: #2C3E50;
+    letter-spacing: -1px;
+    margin-bottom: 0.75rem;
+}
+
+.metric-label {
+    font-size: 0.9375rem;
+    color: #8B9D9A;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+/* How It Works */
+.how-it-works {
+    padding: 8rem 0;
+    background: white;
+}
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4rem;
+    margin-top: 4rem;
+}
+
+.step {
+    text-align: center;
+}
+
+.step-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(123, 158, 157, 0.1);
+    color: #7B9E9D;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 auto 1.5rem;
+}
+
+.step-title {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #2C3E50;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+.step-visual {
+    background: #FAFBFB;
+    border-radius: 20px;
+    padding: 2rem;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Journal Mockup */
+.journal-mockup {
+    width: 100%;
+    max-width: 200px;
+}
+
+.mockup-lines {
+    height: 12px;
+    background: rgba(139, 157, 154, 0.2);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+}
+
+.mockup-lines.short {
+    width: 60%;
+}
+
+/* Spider Preview */
+.spider-preview {
+    margin-bottom: 1rem;
+}
+
+.metric-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.metric-labels span {
+    font-size: 0.75rem;
+    color: #8B9D9A;
+    padding: 0.25rem 0.75rem;
+    background: rgba(139, 157, 154, 0.1);
+    border-radius: 8px;
+}
+
+/* Trend Mockup */
+.trend-mockup {
+    text-align: center;
+}
+
+.trend-line {
+    margin-bottom: 1rem;
+}
+
+.trend-label {
+    font-size: 0.875rem;
+    color: #7B9E9D;
+    font-weight: 500;
+}
+
+/* What Makes It Different */
+.different {
+    padding: 8rem 0;
+    background: linear-gradient(135deg, #F7F9F9 0%, #EEF2F3 100%);
+}
+
+.section-title {
+    font-size: 2.5rem;
+    font-weight: 500;
+    color: #2C3E50;
+    text-align: center;
+    margin-bottom: 4rem;
+    letter-spacing: -0.02em;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 3rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.feature {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(139, 157, 154, 0.08);
+    transition: all 0.3s ease;
+}
+
+.feature:hover {
+    box-shadow: 0 8px 32px rgba(139, 157, 154, 0.12);
+    transform: translateY(-4px);
+}
+
+.feature-icon {
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+}
+
+.feature h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #2C3E50;
+    margin-bottom: 0.75rem;
+}
+
+.feature p {
+    font-size: 0.9375rem;
+    color: #8B9D9A;
+    line-height: 1.6;
+}
+
+/* Pricing */
+.pricing {
+    padding: 8rem 0;
+    background: white;
+}
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.pricing-card {
+    background: white;
+    border: 1px solid rgba(139, 157, 154, 0.15);
+    border-radius: 24px;
+    padding: 3rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.pricing-card:hover {
+    border-color: rgba(123, 158, 157, 0.3);
+    box-shadow: 0 8px 32px rgba(139, 157, 154, 0.12);
+}
+
+.pricing-card.pro {
+    border-color: rgba(123, 158, 157, 0.3);
+    box-shadow: 0 4px 24px rgba(123, 158, 157, 0.08);
+}
+
+.pricing-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #7B9E9D;
+    color: white;
+    padding: 0.375rem 1rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.pricing-header h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #2C3E50;
+    margin-bottom: 1rem;
+}
+
+.price {
+    font-size: 3rem;
+    font-weight: 500;
+    color: #2C3E50;
+    margin-bottom: 2rem;
+}
+
+.price span {
+    font-size: 1rem;
+    color: #8B9D9A;
+    font-weight: 400;
+}
+
+.pricing-features {
+    list-style: none;
+}
+
+.pricing-features li {
+    padding: 0.75rem 0;
+    color: #5A7B7D;
+    font-size: 0.9375rem;
+    border-bottom: 1px solid rgba(139, 157, 154, 0.08);
+}
+
+.pricing-features li:last-child {
+    border-bottom: none;
+}
+
+.pricing-features li::before {
+    content: "✓";
+    color: #7B9E9D;
+    margin-right: 0.75rem;
+    font-weight: 600;
+}
+
+/* Final CTA */
+.final-cta {
+    padding: 8rem 0;
+    background: linear-gradient(135deg, #F7F9F9 0%, #EEF2F3 100%);
+}
+
+.cta-content {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.cta-content h2 {
+    font-size: 2.5rem;
+    font-weight: 500;
+    color: #2C3E50;
+    margin-bottom: 2rem;
+    letter-spacing: -0.02em;
+}
+
+.cta-subtext {
+    margin-top: 1rem;
+    font-size: 0.9375rem;
+    color: #8B9D9A;
+}
+
+/* Footer */
+.footer {
+    padding: 3rem 0;
+    background: white;
+    border-top: 1px solid rgba(139, 157, 154, 0.1);
+}
+
+.footer-content {
+    text-align: center;
+}
+
+.footer-logo {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #3D5A5C;
+    margin-bottom: 0.5rem;
+}
+
+.footer-tagline {
+    font-size: 0.875rem;
+    color: #B8C5C2;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.8s ease forwards;
+}
+
+.fade-in-delay {
+    animation: fadeIn 0.8s ease 0.3s forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s ease;
+}
+
+.fade-in-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .hero-container {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+
+    .hero-title {
+        font-size: 2.75rem;
+    }
+
+    .steps {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 8rem 0 4rem;
+    }
+
+    .hero-title {
+        font-size: 2.25rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.125rem;
+    }
+
+    .hero-cta {
+        flex-direction: column;
+    }
+
+    .hero-cta .btn-primary,
+    .hero-cta .btn-secondary {
+        width: 100%;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .platform-activity {
+        padding: 4rem 0;
+    }
+
+    .activity-metrics {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .metric-card {
+        padding: 2rem 1.5rem;
+    }
+
+    .how-it-works,
+    .different,
+    .pricing,
+    .final-cta {
+        padding: 4rem 0;
+    }
+}
+

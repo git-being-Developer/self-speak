@@ -135,9 +135,13 @@ async function loadDateRange(startDate, endDate) {
             });
         });
 
-        // Update usage
+        // Update usage from API response
         if (data.usage) {
-            appState.usage = data.usage;
+            appState.usage = {
+                used: data.usage.used,
+                limit: data.usage.limit
+            };
+            console.log('📈 Usage loaded:', appState.usage);
             updateUsageDisplay();
         }
 
@@ -180,27 +184,51 @@ async function loadCurrentDateData() {
 function displayJournalData(journal, analysis) {
     const journalText = document.getElementById('journalText');
     const analysisSection = document.getElementById('analysisSection');
+    const saveBtn = document.getElementById('saveBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
 
     // Clear previous state
     journalText.value = '';
     analysisSection.classList.remove('active');
 
+    // Check if viewing current date (today)
+    const isToday = isSameDay(appState.selectedDate, appState.currentDate);
+    const isPastDate = appState.selectedDate < appState.currentDate;
+
     // State 1: No journal
     if (!journal) {
         journalText.value = '';
-        journalText.placeholder = 'What feels present today?';
-        journalText.disabled = false;
+        journalText.placeholder = isToday ? 'What feels present today?' : 'No entry for this date';
+        journalText.disabled = isPastDate; // Disable editing for past dates
         journalText.dispatchEvent(new Event('input')); // Update word count
         console.log('📝 No journal for this date');
-        return;
+    } else {
+        // State 2: Journal exists
+        journalText.value = journal.content || '';
+        journalText.placeholder = 'What feels present today?';
+        journalText.disabled = isPastDate; // Disable editing for past dates
+        journalText.dispatchEvent(new Event('input')); // Update word count
+        console.log('✅ Journal loaded');
     }
 
-    // State 2: Journal exists
-    journalText.value = journal.content || '';
-    journalText.placeholder = 'What feels present today?';
-    journalText.disabled = false;
-    journalText.dispatchEvent(new Event('input')); // Update word count
-    console.log('✅ Journal loaded');
+    // Disable Save and Analyze buttons for past dates
+    if (saveBtn) {
+        saveBtn.disabled = isPastDate;
+        saveBtn.title = isPastDate ? 'Cannot edit past entries' : '';
+    }
+
+    if (analyzeBtn) {
+        if (isPastDate) {
+            analyzeBtn.disabled = true;
+            analyzeBtn.title = 'Cannot analyze past entries';
+        } else {
+            // Check usage limit for current date
+            const limitReached = appState.usage.used >= appState.usage.limit;
+            analyzeBtn.disabled = limitReached;
+            analyzeBtn.title = limitReached ? 'Weekly limit reached. Resets next Monday.' : '';
+            analyzeBtn.textContent = limitReached ? 'Limit Reached' : 'Analyze';
+        }
+    }
 
     // State 3: Journal with analysis
     if (analysis) {
@@ -212,6 +240,8 @@ function displayJournalData(journal, analysis) {
 function displayAnalysis(analysis) {
     if (!analysis) return;
 
+    console.log('🎨 Displaying analysis:', analysis);
+
     const analysisSection = document.getElementById('analysisSection');
 
     // Show analysis section
@@ -219,6 +249,12 @@ function displayAnalysis(analysis) {
 
     // Update metadata badges safely
     updateMetadataBadges(analysis);
+
+    // Update alignment score
+    updateAlignmentScore(analysis);
+
+    // Update reflection insight
+    updateReflectionInsight(analysis);
 
     // Generate radar chart
     setTimeout(() => {
@@ -256,6 +292,46 @@ function updateMetadataBadges(analysis) {
     if (badges[3] && badges[3].querySelector('.badge-value')) {
         const doubtValue = analysis.self_doubt_present !== undefined ? (analysis.self_doubt_present ? 'Present' : 'Minimal') : 'Unknown';
         badges[3].querySelector('.badge-value').textContent = doubtValue;
+    }
+}
+
+function updateAlignmentScore(analysis) {
+    const alignmentScoreCard = document.getElementById('alignmentScoreCard');
+    const alignmentScoreValue = document.getElementById('alignmentScoreValue');
+
+    if (!alignmentScoreCard || !alignmentScoreValue) {
+        console.warn('⚠️ Alignment score elements not found');
+        return;
+    }
+
+    // Show card and display score if available
+    if (analysis && analysis.alignment_score !== undefined) {
+        alignmentScoreValue.textContent = analysis.alignment_score;
+        alignmentScoreCard.style.display = 'block';
+        console.log('✅ Alignment score displayed:', analysis.alignment_score);
+    } else {
+        alignmentScoreCard.style.display = 'none';
+        console.log('ℹ️ No alignment score data to display');
+    }
+}
+
+function updateReflectionInsight(analysis) {
+    const reflectionInsightCard = document.getElementById('reflectionInsightCard');
+    const reflectionInsightText = document.getElementById('reflectionInsightText');
+
+    if (!reflectionInsightCard || !reflectionInsightText) {
+        console.warn('⚠️ Reflection insight elements not found');
+        return;
+    }
+
+    // Show card only if daily_reflection_insight exists
+    if (analysis && analysis.daily_reflection_insight && analysis.daily_reflection_insight.trim()) {
+        reflectionInsightText.textContent = analysis.daily_reflection_insight;
+        reflectionInsightCard.style.display = 'block';
+        console.log('✅ Reflection insight displayed');
+    } else {
+        reflectionInsightCard.style.display = 'none';
+        console.log('ℹ️ No reflection insight data to display');
     }
 }
 
@@ -301,6 +377,44 @@ async function navigateDate(direction) {
 
     updateDateDisplay();
     await loadCurrentDateData();
+
+    // Update button states based on new date
+    updateButtonStates();
+}
+
+function updateButtonStates() {
+    const saveBtn = document.getElementById('saveBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const journalText = document.getElementById('journalText');
+
+    const isPastDate = appState.selectedDate < appState.currentDate;
+
+    // Disable/enable textarea
+    if (journalText) {
+        journalText.disabled = isPastDate;
+        journalText.placeholder = isPastDate ? 'No entry for this date' : 'What feels present today?';
+    }
+
+    // Disable/enable Save button
+    if (saveBtn) {
+        saveBtn.disabled = isPastDate;
+        saveBtn.title = isPastDate ? 'Cannot edit past entries' : '';
+    }
+
+    // Disable/enable Analyze button
+    if (analyzeBtn) {
+        if (isPastDate) {
+            analyzeBtn.disabled = true;
+            analyzeBtn.title = 'Cannot analyze past entries';
+            analyzeBtn.textContent = 'Analyze';
+        } else {
+            // Check usage limit for current date
+            const limitReached = appState.usage.used >= appState.usage.limit;
+            analyzeBtn.disabled = limitReached;
+            analyzeBtn.title = limitReached ? 'Weekly limit reached. Resets next Monday.' : '';
+            analyzeBtn.textContent = limitReached ? 'Limit Reached' : 'Analyze';
+        }
+    }
 }
 
 // ============================================
@@ -310,6 +424,13 @@ async function saveJournal() {
     const journalText = document.getElementById('journalText');
     const saveBtn = document.getElementById('saveBtn');
     const content = journalText.value.trim();
+
+    // Prevent saving past dates
+    const isPastDate = appState.selectedDate < appState.currentDate;
+    if (isPastDate) {
+        showNotification('Cannot edit past entries', 'warning');
+        return;
+    }
 
     if (!content) {
         showNotification('Please write something before saving', 'warning');
@@ -322,12 +443,14 @@ async function saveJournal() {
 
     try {
         console.log('💾 Saving journal entry...');
-        const result = await api.saveJournal(content);
+
+        // Pass the selected date to the API
+        const selectedDateStr = toDateString(appState.selectedDate);
+        const result = await api.saveJournal(content, selectedDateStr);
 
         console.log('✅ Journal saved:', result);
 
         // Update cache
-        const selectedDateStr = toDateString(appState.selectedDate);
         const existingData = appState.journalCache.get(selectedDateStr) || {};
         appState.journalCache.set(selectedDateStr, {
             journal: result.data,
@@ -335,43 +458,78 @@ async function saveJournal() {
         });
 
         showNotification('Journal saved successfully', 'success');
+        return result; // Return for use in analyzeJournal
     } catch (error) {
         console.error('❌ Save failed:', error);
         showNotification(error.message || 'Failed to save journal', 'error');
+        throw error; // Re-throw for analyzeJournal to catch
     } finally {
-        saveBtn.disabled = false;
+        saveBtn.disabled = isPastDate; // Keep disabled if past date
         saveBtn.textContent = 'Save';
     }
 }
 
 async function analyzeJournal() {
     const analyzeBtn = document.getElementById('analyzeBtn');
+    const journalText = document.getElementById('journalText');
+    const content = journalText.value.trim();
+
+    // Prevent analyzing past dates
+    const isPastDate = appState.selectedDate < appState.currentDate;
+    if (isPastDate) {
+        showNotification('Cannot analyze past entries', 'warning');
+        return;
+    }
+
+    // Check if there's content to analyze
+    if (!content) {
+        showNotification('Please write something before analyzing', 'warning');
+        return;
+    }
 
     // Disable button during processing
     analyzeBtn.disabled = true;
-    analyzeBtn.textContent = 'Analyzing...';
+    analyzeBtn.textContent = 'Saving & Analyzing...';
 
     try {
-        console.log('🔍 Requesting analysis...');
-        const result = await api.analyzeJournal();
+        // First, save the journal entry to ensure DB has latest content
+        console.log('💾 Auto-saving before analysis...');
+        const selectedDateStr = toDateString(appState.selectedDate);
+
+        try {
+            await api.saveJournal(content, selectedDateStr);
+            console.log('✅ Auto-save complete');
+        } catch (saveError) {
+            console.error('❌ Auto-save failed:', saveError);
+            throw new Error('Failed to save journal before analyzing. Please try again.');
+        }
+
+        // Now analyze with the selected date
+        analyzeBtn.textContent = 'Analyzing...';
+        console.log('🔍 Requesting analysis for date:', selectedDateStr);
+        const result = await api.analyzeJournal(selectedDateStr);
 
         console.log('✅ Analysis received:', result);
+        console.log('📊 Analysis data:', result.data);
 
-        // Update cache
-        const selectedDateStr = toDateString(appState.selectedDate);
+        // Update cache with new analysis
         const existingData = appState.journalCache.get(selectedDateStr) || {};
         appState.journalCache.set(selectedDateStr, {
             journal: existingData.journal,
             analysis: result.data
         });
 
-        // Update usage
+        // Update usage from response
         if (result.usage) {
-            appState.usage = result.usage;
+            appState.usage = {
+                used: result.usage.used,
+                limit: result.usage.limit
+            };
+            console.log('📈 Usage updated:', appState.usage);
             updateUsageDisplay();
         }
 
-        // Display the analysis
+        // Display the analysis immediately
         displayAnalysis(result.data);
 
         showNotification('Analysis complete!', 'success');
@@ -384,11 +542,14 @@ async function analyzeJournal() {
         } else if (errorMsg.includes('No journal entry') || errorMsg.includes('404')) {
             showNotification('Please save a journal entry first.', 'warning');
         } else {
-            showNotification('Analysis failed. Please try again.', 'error');
+            showNotification(errorMsg || 'Analysis failed. Please try again.', 'error');
         }
     } finally {
-        analyzeBtn.disabled = false;
-        analyzeBtn.textContent = 'Analyze';
+        // Re-check if still on current date (user might have navigated)
+        const stillCurrentDate = !isPastDate;
+        const limitReached = appState.usage.used >= appState.usage.limit;
+        analyzeBtn.disabled = !stillCurrentDate || limitReached;
+        analyzeBtn.textContent = limitReached ? 'Limit Reached' : 'Analyze';
     }
 }
 

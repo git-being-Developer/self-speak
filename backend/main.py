@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 import os
+import json
 from supabase import create_client, Client
 import random
 
@@ -13,6 +14,7 @@ from auth_utils import security, get_current_user_id, get_current_user, supabase
 
 # Import services
 from services import create_daily_analysis_service, create_weekly_pattern_service
+from services.billing_service import BillingService
 
 # Initialize FastAPI
 app = FastAPI(
@@ -33,10 +35,12 @@ app.add_middleware(
 # Initialize services
 daily_analysis_service = create_daily_analysis_service(supabase)
 weekly_pattern_service = create_weekly_pattern_service(supabase)
+billing_service = BillingService(supabase)
 
 # Pydantic Models
 class JournalSaveRequest(BaseModel):
     content: str
+    entry_date: Optional[str] = None  # Optional YYYY-MM-DD, defaults to today
 
 
 class JournalEntry(BaseModel):
@@ -300,19 +304,30 @@ async def save_journal(
     """
     POST /journal/save
 
-    Upsert journal entry for current date.
+    Upsert journal entry for specified date (or current date if not provided).
     Returns saved record.
     """
     # Extract user_id from JWT (never trust client input)
     user_id = await get_current_user_id(credentials)
 
-    current_date = get_current_date()
+    # Use provided entry_date or default to today
+    entry_date = request.entry_date if request.entry_date else get_current_date()
 
     try:
-        # Check if entry exists for today
+        # Validate date format if provided
+        if request.entry_date:
+            try:
+                datetime.strptime(request.entry_date, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid date format. Use YYYY-MM-DD"
+                )
+
+        # Check if entry exists for this date
         existing_response = supabase.table("journal_entries").select("*").eq(
             "user_id", user_id
-        ).eq("entry_date", current_date).execute()
+        ).eq("entry_date", entry_date).execute()
 
         if existing_response.data:
             # Update existing entry
@@ -331,7 +346,7 @@ async def save_journal(
             # Insert new entry
             insert_response = supabase.table("journal_entries").insert({
                 "user_id": user_id,
-                "entry_date": current_date,
+                "entry_date": entry_date,
                 "content": request.content,
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat()
@@ -343,6 +358,8 @@ async def save_journal(
                 "data": insert_response.data[0] if insert_response.data else None
             }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -352,6 +369,7 @@ async def save_journal(
 
 @app.post("/journal/analyze")
 async def analyze_journal(
+    entry_date: Optional[str] = Query(None, description="Entry date in YYYY-MM-DD format, defaults to today"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """
@@ -359,24 +377,36 @@ async def analyze_journal(
 
     Layer 1: Daily AI Analysis
 
-    Generate analysis for today's journal entry using clean service architecture.
+    Generate analysis for specified journal entry (or today's if not provided).
     Checks weekly usage limit before proceeding.
     Returns analysis record with updated usage.
     """
     # Extract user_id from JWT (never trust client input)
     user_id = await get_current_user_id(credentials)
-    current_date = get_current_date()
+
+    # Use provided entry_date or default to today
+    target_date = entry_date if entry_date else get_current_date()
 
     try:
-        # Fetch today's journal entry
+        # Validate date format if provided
+        if entry_date:
+            try:
+                datetime.strptime(entry_date, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid date format. Use YYYY-MM-DD"
+                )
+
+        # Fetch journal entry for target date
         journal_response = supabase.table("journal_entries").select("*").eq(
             "user_id", user_id
-        ).eq("entry_date", current_date).execute()
+        ).eq("entry_date", target_date).execute()
 
         if not journal_response.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No journal entry found for today. Please save an entry first."
+                detail=f"No journal entry found for {target_date}. Please save an entry first."
             )
 
         journal_entry = journal_response.data[0]
@@ -461,6 +491,148 @@ async def get_weekly_dashboard(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate weekly insight: {str(e)}"
         )
+
+
+# ============================================
+# Billing Routes - Lemon Squeezy Integration
+# ============================================
+
+class CheckoutRequest(BaseModel):
+    plan_type: str  # "monthly" or "annual"
+
+
+@app.post("/billing/create-checkout")
+async def create_checkout_session(
+    request: CheckoutRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Create Lemon Squeezy checkout session for Pro subscription."""
+
+    # Get authenticated user ID (never trust frontend)
+    user_id = await get_current_user_id(credentials)
+
+    # Get user email from Supabase
+    try:
+        user_response = supabase.auth.admin.get_user_by_id(user_id)
+        user_email = user_response.user.email
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch user email: {str(e)}"
+        )
+
+    # Validate plan type
+    if request.plan_type not in ["monthly", "annual"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Plan type must be 'monthly' or 'annual'"
+        )
+
+    try:
+        # Create checkout session
+        result = billing_service.create_checkout_session(
+            user_id=user_id,
+            user_email=user_email,
+            plan_type=request.plan_type
+        )
+
+        return {
+            "success": True,
+            "checkout_url": result["checkout_url"],
+            "plan_type": result["plan_type"]
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create checkout session: {str(e)}"
+        )
+
+
+@app.post("/billing/webhook")
+async def lemon_squeezy_webhook(request: Request):
+    """Handle Lemon Squeezy webhook events."""
+
+    # Get raw body for signature verification
+    raw_body = await request.body()
+    signature = request.headers.get("X-Signature")
+
+    if not signature:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-Signature header"
+        )
+
+    # Verify webhook signature
+    if not billing_service.verify_webhook_signature(raw_body, signature):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature"
+        )
+
+    # Parse webhook payload
+    try:
+        event_data = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON payload"
+        )
+
+    # Process webhook
+    try:
+        result = billing_service.process_webhook(event_data)
+
+        return {
+            "success": True,
+            "message": result.get("status", "processed"),
+            "event_id": event_data.get("meta", {}).get("event_id")
+        }
+
+    except ValueError as e:
+        # Log error but return 200 to prevent retries
+        print(f"⚠️ Webhook processing error: {str(e)}")
+        return {
+            "success": False,
+            "message": str(e),
+            "event_id": event_data.get("meta", {}).get("event_id")
+        }
+    except Exception as e:
+        # Log critical error
+        print(f"❌ Critical webhook error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook processing failed: {str(e)}"
+        )
+
+
+@app.get("/billing/subscription")
+async def get_subscription_status(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get current user's subscription details."""
+
+    user_id = await get_current_user_id(credentials)
+    subscription = billing_service.get_user_subscription(user_id)
+
+    if not subscription:
+        return {
+            "plan": "free",
+            "status": "none",
+            "renewal_date": None
+        }
+
+    return {
+        "plan": subscription.get("plan", "free"),
+        "status": subscription.get("status"),
+        "renewal_date": subscription.get("renewal_date"),
+        "started_at": subscription.get("started_at")
+    }
 
 
 if __name__ == "__main__":

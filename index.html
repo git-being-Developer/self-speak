@@ -32,9 +32,9 @@
     </nav>
 
     <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="dashboard-content">
         <!-- Main Journal Card -->
-        <div class="journal-card">
+        <div class="journal-card fade-in">
             <div class="card-header">
                 <button class="date-nav-btn" id="prevDate" title="Previous day">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -133,6 +133,19 @@
                     <span class="badge-label">Self-Doubt Present</span>
                     <span class="badge-value">Minimal</span>
                 </div>
+            </div>
+
+            <!-- Alignment Score Card -->
+            <div class="alignment-score-card" id="alignmentScoreCard" style="display: none;">
+                <h4 class="alignment-score-title">Alignment Score</h4>
+                <div class="alignment-score-value" id="alignmentScoreValue">--</div>
+                <p class="alignment-score-subtext">Composite reflection score for today.</p>
+            </div>
+
+            <!-- Reflection Insight Card -->
+            <div class="reflection-insight-card" id="reflectionInsightCard" style="display: none;">
+                <h4 class="reflection-insight-title">Reflection</h4>
+                <p class="reflection-insight-text" id="reflectionInsightText"></p>
             </div>
         </div>
     </main>

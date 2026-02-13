@@ -30,6 +30,30 @@ class AIService:
         self.model = "gpt-5.1"  # Cost-efficient stable model
         self.temperature = 0.4  # Consistency over creativity
 
+    # Controlled taxonomy for behavioral tags
+    ALLOWED_BEHAVIORAL_TAGS = [
+        "future_focused",
+        "past_reflecting",
+        "present_anchored",
+        "socially_engaged",
+        "internally_focused",
+        "action_oriented",
+        "contemplative",
+        "emotionally_processing",
+        "problem_solving",
+        "gratitude_expressing",
+        "identity_exploring",
+        "relationship_focused",
+        "achievement_oriented",
+        "rest_seeking",
+        "growth_mindset",
+        "fixed_perspective",
+        "optimistic_leaning",
+        "pessimistic_leaning",
+        "self_compassionate",
+        "self_critical"
+    ]
+
     def analyze_daily_journal(self, journal_content: str) -> Dict[str, Any]:
         """
         Layer 1: Daily Analysis
@@ -47,23 +71,40 @@ class AIService:
         Raises:
             ValueError: If AI response is invalid after retry
         """
-        system_prompt = """You are analyzing a personal journal entry.
-Evaluate language and tone only.
-Do not provide therapy, advice, or predictions.
-Return conservative scores.
+        system_prompt = """You are analyzing a personal journal entry for a self-awareness analytics platform.
+You evaluate language and tone only.
+You do not provide therapy, life advice, instructions, or motivational coaching.
+You do not use words like:
+should
+must
+need to
+fix
+change your life
+You provide neutral, reflective observations.
+You return conservative scores.
 Output valid JSON only."""
 
         user_prompt = f"""Analyze this journal entry and return:
-- confidence (0-100): How confident/assured the writer appears
-- abundance (0-100): Sense of having enough/plenty
-- clarity (0-100): Clear thinking and direction
-- gratitude (0-100): Expressions of thankfulness
-- resistance (0-100): Opposition to change or reality
-- dominant_emotion (1 word): Primary emotion detected
-- goal_present (true/false): Any goals or intentions mentioned
-- self_doubt_present (true/false): Self-questioning or uncertainty
-- time_horizon (short/long/vague): Planning timeframe
-- overall_tone (calm/anxious/driven/scattered): Overall emotional tone
+confidence (0–100)
+abundance (0–100)
+clarity (0–100)
+gratitude (0–100)
+resistance (0–100)
+dominant_emotion (1 word)
+goal_present (true/false)
+self_doubt_present (true/false)
+time_horizon (short, long, vague)
+overall_tone (calm, anxious, driven, scattered)
+behavioral_tags (array of 1-4 tags from allowed list)
+
+Allowed behavioral tags:
+{', '.join(self.ALLOWED_BEHAVIORAL_TAGS)}
+
+Rules for behavioral_tags:
+- Select 1-4 most relevant tags
+- Base selection on observable language patterns
+- Do not over-interpret
+- Return as JSON array of strings
 
 Journal:
 \"\"\"
@@ -79,7 +120,7 @@ Return JSON only."""
             expected_keys=[
                 "confidence", "abundance", "clarity", "gratitude", "resistance",
                 "dominant_emotion", "goal_present", "self_doubt_present",
-                "time_horizon", "overall_tone"
+                "time_horizon", "overall_tone", "behavioral_tags"
             ]
         )
 
@@ -117,30 +158,33 @@ Return JSON only."""
         Raises:
             ValueError: If AI response is invalid after retry
         """
-        # Ensure minimum data - even 1 entry can provide insight
+        # Require minimum 3 data points for reliable pattern detection
         entry_count = aggregated_metadata.get("entry_count", 0)
-        if entry_count < 1:
+        if entry_count < 3:
             return {
-                "summary_text": "No journal entries analyzed this week yet. Start writing and analyzing your journals to unlock weekly reflections.",
+                "summary_text": f"Weekly insights require at least 3 analyzed journal entries. You have {entry_count}. Keep journaling and analyzing!",
                 "dominant_week_emotion": "Reflective",
-                "reflection_question": "What's on your mind today?"
+                "reflection_question": "What's on your mind today?",
+                "pattern_summary": None,
+                "pattern_experiment": None,
+                "dominant_behavioral_theme": None,
+                "confidence_trend": aggregated_metadata.get("confidence_trend", "stable"),
+                "resistance_trend": aggregated_metadata.get("resistance_trend", "stable"),
+                "gratitude_trend": aggregated_metadata.get("gratitude_trend", "stable")
             }
 
-        # Adjust messaging for low entry counts
-        if entry_count == 1:
-            context_note = "Based on your single journal entry this week, "
-        elif entry_count == 2:
-            context_note = "Based on your two journal entries this week, "
-        else:
-            context_note = f"Based on your {entry_count} journal entries this week, "
-
         system_prompt = """You analyze structured emotional trend data from a journaling application.
-Do not provide therapy or predictions.
-
+You do not provide therapy, advice, or predictions.
+You observe patterns neutrally.
+Avoid words like: should, must, need to, fix, improve.
 Return JSON only."""
 
         # Build structured data summary
         data_summary = json.dumps(aggregated_metadata, indent=2)
+
+        # Extract dominant behavioral theme from top tags
+        top_tags = aggregated_metadata.get("top_tags") or []
+        dominant_theme = top_tags[0] if (top_tags and len(top_tags) > 0) else "reflective"
 
         user_prompt = f"""Here is aggregated weekly data:
 {data_summary}
@@ -149,6 +193,14 @@ Return:
 - summary_text (3-5 sentences describing observable patterns)
 - dominant_week_emotion (single word for the week's primary emotion)
 - reflection_question (1 open-ended reflective question based on trends)
+- pattern_summary (2-3 sentences describing behavioral patterns observed, neutral tone)
+- pattern_experiment (5-7 day exploratory experiment suggestion based on patterns, non-prescriptive)
+
+Rules:
+- No advice language
+- No "you should" or "you must"
+- Suggest experiments as possibilities, not instructions
+- Be specific but exploratory
 
 Return JSON only."""
 
@@ -156,11 +208,15 @@ Return JSON only."""
         response_data, error = self._call_openai_with_retry(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            expected_keys=["summary_text", "dominant_week_emotion", "reflection_question"]
+            expected_keys=["summary_text", "dominant_week_emotion", "reflection_question",
+                          "pattern_summary", "pattern_experiment"]
         )
 
         if error:
             raise ValueError(f"Weekly insight generation failed: {error}")
+
+        # Add dominant behavioral theme from aggregated tags
+        response_data["dominant_behavioral_theme"] = dominant_theme
 
         # Add trend fields from aggregated metadata (already computed)
         response_data["confidence_trend"] = aggregated_metadata.get("confidence_trend", "stable")
@@ -233,8 +289,9 @@ Return JSON only."""
         validated = {}
 
         # Validate numeric scores (0-100)
+        # Handle both formats: "confidence" or "confidence_score" from AI
         for key in ["confidence", "abundance", "clarity", "gratitude", "resistance"]:
-            score = data.get(key, 50)
+            score = data.get(key) or data.get(f"{key}_score", 50)
             try:
                 score = int(score)
                 score = max(0, min(100, score))  # Clamp to 0-100
@@ -257,6 +314,35 @@ Return JSON only."""
         # Validate boolean fields
         validated["goal_present"] = bool(data.get("goal_present", False))
         validated["self_doubt_present"] = bool(data.get("self_doubt_present", False))
+
+        # Validate behavioral_tags
+        tags = data.get("behavioral_tags", [])
+        if not isinstance(tags, list):
+            raise ValueError("behavioral_tags must be an array")
+
+        # Filter to valid tags only
+        valid_tags = [tag for tag in tags if tag in self.ALLOWED_BEHAVIORAL_TAGS]
+
+        # Enforce max 4 tags
+        if len(valid_tags) > 4:
+            valid_tags = valid_tags[:4]
+
+        # Require at least 1 tag
+        if len(valid_tags) < 1:
+            raise ValueError("At least 1 valid behavioral tag is required")
+
+        validated["behavioral_tags"] = valid_tags
+
+        # Calculate alignment_score (backend calculation)
+        # Formula: (confidence + abundance + clarity + gratitude + (100 - resistance)) / 5
+        alignment_score = (
+            validated["confidence_score"] +
+            validated["abundance_score"] +
+            validated["clarity_score"] +
+            validated["gratitude_score"] +
+            (100 - validated["resistance_score"])
+        ) / 5
+        validated["alignment_score"] = round(alignment_score)
 
         return validated
 

@@ -20,7 +20,7 @@
         <div class="nav-right">
             <a href="/index.html" class="nav-link">Journal</a>
             <a href="/dashboard.html" class="nav-link active">Dashboard</a>
-            <span class="badge-free">Free</span>
+            <span class="badge-plan" id="planBadge">Free</span>
             <div class="user-avatar">
                 <img src="https://via.placeholder.com/40/8B9D9A/FFFFFF?text=U" alt="User Avatar" id="userAvatar">
             </div>
@@ -73,9 +73,19 @@
 
             <!-- Weekly Average Radar Chart -->
             <div class="dashboard-card fade-in">
-                <h2 class="card-title">Your Week at a Glance</h2>
+                <h2 class="card-title">Average Mental Shape</h2>
                 <div class="chart-container-large">
                     <canvas id="weeklyRadarChart" width="500" height="500"></canvas>
+                </div>
+            </div>
+
+            <!-- Weekly Alignment Overview -->
+            <div class="dashboard-card alignment-overview-card fade-in" id="alignmentOverviewCard">
+                <h3 class="card-title">Weekly Alignment</h3>
+                <div class="alignment-overview-content">
+                    <div class="weekly-alignment-score" id="weeklyAlignmentScore">--</div>
+                    <p class="alignment-overview-subtext">Average composite score this week</p>
+                    <p class="last-updated-text" id="lastUpdatedText">Last updated: --</p>
                 </div>
             </div>
 
@@ -102,7 +112,61 @@
                 </div>
             </div>
 
-            <!-- Insight Card -->
+            <!-- Behavioral Theme Section -->
+            <div class="dashboard-card behavioral-theme-card fade-in" id="behavioralThemeCard" style="display: none;">
+                <h3 class="card-title">Dominant Behavioral Theme</h3>
+                <div class="behavioral-theme-badge" id="behavioralThemeBadge">--</div>
+
+                <!-- Pattern Summary (Pro-Gated) -->
+                <div class="pro-gated-section" id="patternSummarySection">
+                    <div class="pro-content" id="patternSummaryContent">
+                        <p class="behavioral-theme-summary" id="behavioralThemeSummary">Loading pattern analysis...</p>
+                    </div>
+
+                    <!-- Free User Overlay -->
+                    <div class="pro-gate-overlay" id="patternSummaryOverlay" style="display: none;">
+                        <div class="pro-gate-content">
+                            <svg class="pro-lock-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 11H5c-1.1 0-2 .9-2 2v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2z" fill="currentColor" opacity="0.2"/>
+                                <path d="M7 11V7c0-2.76 2.24-5 5-5s5 2.24 5 5v4M19 11H5c-1.1 0-2 .9-2 2v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p class="pro-gate-text">Advanced pattern intelligence is available with Pro.</p>
+                            <button class="btn-pro-upgrade" onclick="handleProUpgrade()">Upgrade to Pro</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experiment Section (Pro-Gated) -->
+            <div class="dashboard-card experiment-card fade-in" id="experimentCard" style="display: none;">
+                <div class="experiment-icon">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <path d="M14 2C7.373 2 2 7.373 2 14s5.373 12 12 12 12-5.373 12-12S20.627 2 14 2z" fill="#E8F4F3"/>
+                        <path d="M14 8v8M14 20h.01" stroke="#7B9E9D" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h3 class="experiment-title">Exploration Suggestion</h3>
+
+                <div class="pro-gated-section" id="experimentSection">
+                    <div class="pro-content" id="experimentContent">
+                        <p class="experiment-text" id="experimentText">Loading suggestion...</p>
+                    </div>
+
+                    <!-- Free User Overlay -->
+                    <div class="pro-gate-overlay" id="experimentOverlay" style="display: none;">
+                        <div class="pro-gate-content">
+                            <svg class="pro-lock-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 11H5c-1.1 0-2 .9-2 2v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2z" fill="currentColor" opacity="0.2"/>
+                                <path d="M7 11V7c0-2.76 2.24-5 5-5s5 2.24 5 5v4M19 11H5c-1.1 0-2 .9-2 2v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p class="pro-gate-text">Structured exploration plans are included in Pro.</p>
+                            <button class="btn-pro-upgrade" onclick="handleProUpgrade()">Upgrade to Pro</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Original Insight Card -->
             <div class="dashboard-card insight-card fade-in">
                 <div class="insight-icon">
                     <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -119,8 +183,71 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Free User Upgrade Banner -->
+            <div class="upgrade-banner fade-in" id="upgradeBanner" style="display: none;">
+                <div class="upgrade-content">
+                    <h4 class="upgrade-title">Unlock Full Pattern Intelligence</h4>
+                    <p class="upgrade-description">Access deeper insights and advanced pattern analysis with Pro.</p>
+                    <button class="btn btn-upgrade">Learn More</button>
+                </div>
+            </div>
         </div>
     </main>
+
+    <!-- Plan Selection Modal -->
+    <div class="plan-modal-overlay" id="planModal" style="display: none;">
+        <div class="plan-modal-content">
+            <button class="plan-modal-close" id="closePlanModal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+
+            <h2 class="plan-modal-title">Choose Your Plan</h2>
+            <p class="plan-modal-subtitle">Select a subscription plan to unlock Pro features</p>
+
+            <div class="plan-cards-container">
+                <!-- Monthly Plan -->
+                <div class="plan-card" data-plan="monthly">
+                    <h3 class="plan-card-name">Pro Monthly</h3>
+                    <div class="plan-card-price">
+                        <span class="plan-price-amount">$9</span>
+                        <span class="plan-price-period">/month</span>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Advanced pattern intelligence</li>
+                        <li>Structured exploration plans</li>
+                        <li>Weekly behavioral insights</li>
+                        <li>Unlimited analyses</li>
+                    </ul>
+                    <button class="btn-select-plan" data-plan="monthly">
+                        Select Monthly
+                    </button>
+                </div>
+
+                <!-- Annual Plan -->
+                <div class="plan-card plan-card-recommended" data-plan="annual">
+                    <div class="plan-badge-best">Best Value</div>
+                    <h3 class="plan-card-name">Pro Annual</h3>
+                    <div class="plan-card-price">
+                        <span class="plan-price-amount">$79</span>
+                        <span class="plan-price-period">/year</span>
+                    </div>
+                    <div class="plan-savings">Save $29 per year</div>
+                    <ul class="plan-features">
+                        <li>Advanced pattern intelligence</li>
+                        <li>Structured exploration plans</li>
+                        <li>Weekly behavioral insights</li>
+                        <li>Unlimited analyses</li>
+                    </ul>
+                    <button class="btn-select-plan btn-select-plan-primary" data-plan="annual">
+                        Select Annual
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -108,7 +108,8 @@ class WeeklyPatternService:
         stored_insight = self._store_weekly_insight(
             user_id,
             week_start_date,
-            ai_response
+            ai_response,
+            aggregated_metadata
         )
 
         # Step 7: Return insight with trend data
@@ -180,7 +181,7 @@ class WeeklyPatternService:
     ) -> Dict[str, Any]:
         """
         Aggregate metadata from daily analyses.
-        Computes averages and trends.
+        Computes averages, trends, tag frequency, and correlations.
 
         Returns structured metadata for AI consumption.
         """
@@ -195,6 +196,23 @@ class WeeklyPatternService:
         avg_clarity = sum(a.get("clarity_score", 0) for a in daily_analyses) / total_entries
         avg_gratitude = sum(a.get("gratitude_score", 0) for a in daily_analyses) / total_entries
         avg_resistance = sum(a.get("resistance_score", 0) for a in daily_analyses) / total_entries
+        avg_alignment = sum(a.get("alignment_score", 0) for a in daily_analyses) / total_entries
+
+        # Aggregate behavioral tags
+        tag_frequency = {}
+        for analysis in daily_analyses:
+            tags = analysis.get("behavioral_tags") or []
+            if tags is None:
+                tags = []
+            for tag in tags:
+                tag_frequency[tag] = tag_frequency.get(tag, 0) + 1
+
+        # Sort tags by frequency
+        sorted_tags = sorted(tag_frequency.items(), key=lambda x: x[1], reverse=True)
+        top_tags = [tag for tag, _ in sorted_tags[:5]]  # Top 5 tags
+
+        # Compute tag correlations with resistance and clarity
+        tag_correlations = self._compute_tag_correlations(daily_analyses, tag_frequency)
 
         # Compute trends (early week vs late week)
         trends = self._compute_trends(daily_analyses)
@@ -219,6 +237,10 @@ class WeeklyPatternService:
                 "gratitude": round(avg_gratitude, 1),
                 "resistance": round(avg_resistance, 1),
             },
+            "weekly_alignment_score": round(avg_alignment),
+            "top_tags": top_tags,
+            "tag_frequency": tag_frequency,
+            "tag_correlations": tag_correlations,
             "trends": trends,
             "confidence_trend": trends.get("confidence", "stable"),
             "resistance_trend": trends.get("resistance", "stable"),
@@ -277,11 +299,49 @@ class WeeklyPatternService:
             ),
         }
 
+    def _compute_tag_correlations(
+        self,
+        daily_analyses: List[Dict[str, Any]],
+        tag_frequency: Dict[str, int]
+    ) -> Dict[str, Any]:
+        """
+        Compute correlations between behavioral tags and resistance/clarity scores.
+        Returns simplified correlation data for pattern detection.
+        """
+        correlations = {}
+
+        # Only analyze tags that appear at least twice
+        significant_tags = [tag for tag, freq in tag_frequency.items() if freq >= 2]
+
+        for tag in significant_tags:
+            # Collect resistance and clarity scores when this tag is present
+            resistance_scores = []
+            clarity_scores = []
+
+            for analysis in daily_analyses:
+                tags = analysis.get("behavioral_tags") or []
+                if tag in tags:
+                    resistance_scores.append(analysis.get("resistance_score", 0))
+                    clarity_scores.append(analysis.get("clarity_score", 0))
+
+            if resistance_scores and clarity_scores:
+                avg_resistance = sum(resistance_scores) / len(resistance_scores)
+                avg_clarity = sum(clarity_scores) / len(clarity_scores)
+
+                correlations[tag] = {
+                    "avg_resistance": round(avg_resistance, 1),
+                    "avg_clarity": round(avg_clarity, 1),
+                    "occurrence_count": len(resistance_scores)
+                }
+
+        return correlations
+
     def _store_weekly_insight(
         self,
         user_id: str,
         week_start_date: str,
-        ai_response: Dict[str, Any]
+        ai_response: Dict[str, Any],
+        aggregated_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Store weekly insight in database."""
         insert_response = self.supabase.table("weekly_insights").insert({
@@ -293,6 +353,10 @@ class WeeklyPatternService:
             "gratitude_trend": ai_response["gratitude_trend"],
             "dominant_week_emotion": ai_response["dominant_week_emotion"],
             "reflection_question": ai_response["reflection_question"],
+            "pattern_summary": ai_response.get("pattern_summary"),
+            "pattern_experiment": ai_response.get("pattern_experiment"),
+            "dominant_behavioral_theme": ai_response.get("dominant_behavioral_theme"),
+            "weekly_alignment_score": aggregated_metadata.get("weekly_alignment_score"),
             "created_at": datetime.now().isoformat()
         }).execute()
 

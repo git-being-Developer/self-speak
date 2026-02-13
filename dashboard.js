@@ -5,7 +5,8 @@
 let dashboardState = {
     weeklyData: null,
     loading: true,
-    error: null
+    error: null,
+    userPlan: 'free' // Default to free, will be updated from backend
 };
 
 // ============================================
@@ -26,6 +27,24 @@ async function checkAuth() {
     // Set token for API calls
     api.setToken(session.access_token);
 
+    // Fetch user subscription plan from database
+    try {
+        const { data: subscription } = await window.supabase
+            .from('subscriptions')
+            .select('plan')
+            .eq('user_id', session.user.id)
+            .single();
+
+        dashboardState.userPlan = subscription?.plan || 'free';
+        console.log('📋 User plan:', dashboardState.userPlan);
+    } catch (err) {
+        console.log('No subscription found, defaulting to free plan');
+        dashboardState.userPlan = 'free';
+    }
+
+    // Update plan badge in UI
+    updatePlanBadge(dashboardState.userPlan);
+
     // Update UI with user info
     const avatarImg = document.getElementById('userAvatar');
     if (session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture) {
@@ -33,6 +52,15 @@ async function checkAuth() {
     }
 
     return session;
+}
+
+function updatePlanBadge(plan) {
+    const planBadge = document.getElementById('planBadge');
+    if (!planBadge) return;
+
+    const isPro = plan === 'pro';
+    planBadge.textContent = isPro ? 'Pro' : 'Free';
+    planBadge.className = isPro ? 'badge-pro' : 'badge-free';
 }
 
 async function handleLogout() {
@@ -125,6 +153,9 @@ function renderDashboard() {
     // Safely render week range
     renderWeekRange(data);
 
+    // Render weekly alignment score
+    renderWeeklyAlignmentScore(data);
+
     // Render charts with guards against undefined
     renderWeeklyRadarChart(data.weekly_averages || {});
     renderLineChart('confidenceLineChart', data.daily_scores || [], 'confidence');
@@ -134,8 +165,17 @@ function renderDashboard() {
     renderTrendBadge('confidenceTrend', data.trend_data?.confidence);
     renderTrendBadge('resistanceTrend', data.trend_data?.resistance);
 
+    // Render behavioral theme and pattern
+    renderBehavioralTheme(data.weekly_insight || {});
+
+    // Render experiment section
+    renderExperiment(data.weekly_insight || {});
+
     // Render insight
     renderInsight(data.weekly_insight || {});
+
+    // Show upgrade banner for free users if applicable
+    renderUpgradeBanner();
 }
 
 function renderWeekRange(data) {
@@ -187,6 +227,225 @@ function renderInsight(insight) {
 
     if (questionEl) {
         questionEl.textContent = insight.reflection_question || 'Keep journaling to unlock personalized reflections.';
+    }
+}
+
+function renderWeeklyAlignmentScore(data) {
+    const alignmentScoreEl = document.getElementById('weeklyAlignmentScore');
+    const alignmentCard = document.getElementById('alignmentOverviewCard');
+    const lastUpdatedEl = document.getElementById('lastUpdatedText');
+
+    if (!alignmentScoreEl || !alignmentCard) return;
+
+    const weeklyInsight = data.weekly_insight || {};
+    const alignmentScore = weeklyInsight.weekly_alignment_score;
+
+    if (alignmentScore !== undefined && alignmentScore !== null) {
+        alignmentScoreEl.textContent = alignmentScore;
+        alignmentCard.style.display = 'block';
+
+        // Show last updated time
+        if (lastUpdatedEl) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+            lastUpdatedEl.textContent = `Last updated: ${timeStr}`;
+        }
+    } else {
+        alignmentCard.style.display = 'none';
+    }
+}
+
+function renderBehavioralTheme(insight) {
+    const themeCard = document.getElementById('behavioralThemeCard');
+    const themeBadge = document.getElementById('behavioralThemeBadge');
+    const themeSummary = document.getElementById('behavioralThemeSummary');
+    const patternSummaryOverlay = document.getElementById('patternSummaryOverlay');
+    const patternSummaryContent = document.getElementById('patternSummaryContent');
+
+    if (!themeCard || !themeBadge || !themeSummary) return;
+
+    const theme = insight.dominant_behavioral_theme;
+    const patternSummary = insight.pattern_summary;
+    const entryCount = dashboardState.weeklyData?.entry_count || 0;
+
+    // Check if we have enough data
+    if (entryCount < 3) {
+        themeCard.style.display = 'none';
+        return;
+    }
+
+    // Show card if we have theme
+    if (theme) {
+        // Format theme for display (convert snake_case to Title Case)
+        const formattedTheme = theme
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+
+        themeBadge.textContent = formattedTheme;
+        themeCard.style.display = 'block';
+
+        // Handle Pro gating for pattern summary
+        const isPro = dashboardState.userPlan === 'pro';
+
+        if (patternSummary && patternSummary.trim()) {
+            themeSummary.textContent = patternSummary;
+
+            // Show/hide overlay based on plan
+            if (patternSummaryOverlay && patternSummaryContent) {
+                if (isPro) {
+                    // Pro user: show content, hide overlay
+                    patternSummaryOverlay.style.display = 'none';
+                    patternSummaryContent.classList.remove('blurred');
+                } else {
+                    // Free user: show overlay, blur content
+                    patternSummaryOverlay.style.display = 'flex';
+                    patternSummaryContent.classList.add('blurred');
+                }
+            }
+        } else {
+            // No pattern summary available
+            themeSummary.textContent = 'Pattern analysis in progress...';
+            if (patternSummaryOverlay) {
+                patternSummaryOverlay.style.display = 'none';
+            }
+        }
+    } else {
+        themeCard.style.display = 'none';
+    }
+}
+
+function renderExperiment(insight) {
+    const experimentCard = document.getElementById('experimentCard');
+    const experimentText = document.getElementById('experimentText');
+    const experimentOverlay = document.getElementById('experimentOverlay');
+    const experimentContent = document.getElementById('experimentContent');
+
+    if (!experimentCard || !experimentText) return;
+
+    const experiment = insight.pattern_experiment;
+    const entryCount = dashboardState.weeklyData?.entry_count || 0;
+
+    // Check if we have enough data
+    if (entryCount < 3) {
+        experimentCard.style.display = 'none';
+        return;
+    }
+
+    // Show card if we have experiment data
+    if (experiment && experiment.trim()) {
+        experimentText.textContent = experiment;
+        experimentCard.style.display = 'block';
+
+        // Handle Pro gating
+        const isPro = dashboardState.userPlan === 'pro';
+
+        if (experimentOverlay && experimentContent) {
+            if (isPro) {
+                // Pro user: show content, hide overlay
+                experimentOverlay.style.display = 'none';
+                experimentContent.classList.remove('blurred');
+            } else {
+                // Free user: show overlay, blur content
+                experimentOverlay.style.display = 'flex';
+                experimentContent.classList.add('blurred');
+            }
+        }
+    } else {
+        experimentCard.style.display = 'none';
+    }
+}
+
+function renderUpgradeBanner() {
+    const upgradeBanner = document.getElementById('upgradeBanner');
+
+    if (!upgradeBanner) return;
+
+    // Hide the general upgrade banner (we use inline gating instead)
+    upgradeBanner.style.display = 'none';
+}
+
+// ============================================
+// Pro Upgrade Handler
+// ============================================
+
+function handleProUpgrade() {
+    console.log('🚀 User clicked Upgrade to Pro');
+
+    // Show plan selection modal
+    const planModal = document.getElementById('planModal');
+    if (planModal) {
+        planModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
+    }
+}
+
+function closePlanModal() {
+    const planModal = document.getElementById('planModal');
+    if (planModal) {
+        planModal.style.display = 'none';
+        document.body.style.overflow = ''; // Restore scroll
+    }
+}
+
+async function proceedToCheckout(planType) {
+    console.log('💳 Proceeding to checkout with plan:', planType);
+
+    try {
+        // Get current session for auth token
+        const { data: { session }, error } = await window.supabase.auth.getSession();
+
+        if (!session) {
+            alert('Please log in to upgrade to Pro');
+            window.location.href = '/login.html';
+            return;
+        }
+
+        // Show loading state
+        const selectButtons = document.querySelectorAll('.btn-select-plan');
+        selectButtons.forEach(btn => {
+            btn.disabled = true;
+            btn.textContent = 'Creating checkout...';
+        });
+
+        // Create checkout session with backend
+        const response = await fetch('http://localhost:8000/billing/create-checkout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                plan_type: planType  // 'monthly' or 'annual'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.checkout_url) {
+            // Redirect to Lemon Squeezy checkout
+            console.log('✅ Redirecting to checkout:', data.checkout_url);
+            window.location.href = data.checkout_url;
+        } else {
+            throw new Error(data.detail || 'Failed to create checkout session');
+        }
+
+    } catch (error) {
+        console.error('❌ Checkout error:', error);
+
+        // Reset buttons
+        const selectButtons = document.querySelectorAll('.btn-select-plan');
+        selectButtons.forEach(btn => {
+            btn.disabled = false;
+            const plan = btn.getAttribute('data-plan');
+            btn.textContent = plan === 'monthly' ? 'Select Monthly' : 'Select Annual';
+        });
+
+        // Show user-friendly error
+        alert('Unable to start checkout. Please try again or contact support.');
     }
 }
 
@@ -257,6 +516,7 @@ function animateRadarData(ctx, centerX, centerY, radius, axes, scores) {
     let progress = 0;
     const duration = 1000;
     const startTime = Date.now();
+    const labels = ['Confidence', 'Abundance', 'Clarity', 'Gratitude', 'Resistance'];
 
     function animate() {
         const elapsed = Date.now() - startTime;
@@ -275,7 +535,7 @@ function animateRadarData(ctx, centerX, centerY, radius, axes, scores) {
             ctx.stroke();
         }
 
-        // Redraw axes
+        // Redraw axes AND labels
         ctx.strokeStyle = 'rgba(139, 157, 154, 0.12)';
         for (let i = 0; i < axes; i++) {
             const angle = (Math.PI * 2 * i) / axes - Math.PI / 2;
@@ -286,6 +546,17 @@ function animateRadarData(ctx, centerX, centerY, radius, axes, scores) {
             ctx.moveTo(centerX, centerY);
             ctx.lineTo(x, y);
             ctx.stroke();
+
+            // IMPORTANT: Redraw labels in animation loop
+            const labelDistance = radius + 40;
+            const labelX = centerX + Math.cos(angle) * labelDistance;
+            const labelY = centerY + Math.sin(angle) * labelDistance;
+
+            ctx.fillStyle = '#5A7B7D';
+            ctx.font = '14px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labels[i], labelX, labelY);
         }
 
         // Draw data polygon
@@ -463,6 +734,38 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
     }
+
+    // Modal event listeners
+    const closePlanModalBtn = document.getElementById('closePlanModal');
+    if (closePlanModalBtn) {
+        closePlanModalBtn.addEventListener('click', closePlanModal);
+    }
+
+    // Close modal on outside click
+    const planModal = document.getElementById('planModal');
+    if (planModal) {
+        planModal.addEventListener('click', (e) => {
+            if (e.target === planModal) {
+                closePlanModal();
+            }
+        });
+    }
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePlanModal();
+        }
+    });
+
+    // Plan selection buttons
+    const selectPlanButtons = document.querySelectorAll('.btn-select-plan');
+    selectPlanButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const planType = btn.getAttribute('data-plan');
+            proceedToCheckout(planType);
+        });
+    });
 
     // Load dashboard data
     await loadWeeklyDashboard();

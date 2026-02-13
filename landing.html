@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selfspeak - Self-Awareness Analytics</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <div class="nav-logo">Selfspeak</div>
+            <button class="btn-login" id="loginBtn">Continue with Google</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content fade-in">
+                <h1 class="hero-title">See the patterns shaping your life.</h1>
+                <p class="hero-subtitle">Selfspeak transforms daily journaling into structured self-awareness analytics.</p>
+
+                <div class="hero-cta">
+                    <button class="btn-primary" id="heroCTA">Try it free</button>
+                    <button class="btn-secondary" id="heroGoogle">Continue with Google</button>
+                </div>
+            </div>
+
+            <!-- Animated Preview -->
+            <div class="hero-preview fade-in-delay">
+                <div class="preview-card">
+                    <div class="preview-chart">
+                        <canvas id="heroRadarChart" width="400" height="400"></canvas>
+                    </div>
+                </div>
+
+                <div class="preview-insight">
+                    <div class="insight-mini">
+                        <div class="insight-label">This Week's Pattern</div>
+                        <p class="insight-text">Your clarity scores increased steadily while resistance remained stable.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Platform Activity -->
+    <section class="platform-activity">
+        <div class="container">
+            <h2 class="section-subtitle">Platform Activity</h2>
+            <div class="activity-metrics">
+                <div class="metric-card fade-in-scroll">
+                    <div class="metric-number" data-value="137">0+</div>
+                    <div class="metric-label">journal entries analyzed</div>
+                </div>
+                <div class="metric-card fade-in-scroll">
+                    <div class="metric-number" data-value="42">0+</div>
+                    <div class="metric-label">weekly reflections generated</div>
+                </div>
+                <div class="metric-card fade-in-scroll">
+                    <div class="metric-number" data-value="28">0+</div>
+                    <div class="metric-label">behavioral patterns observed</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <div class="steps">
+                <div class="step fade-in-scroll">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Write one focused journal entry per day</h3>
+                    <div class="step-visual">
+                        <div class="journal-mockup">
+                            <div class="mockup-lines"></div>
+                            <div class="mockup-lines"></div>
+                            <div class="mockup-lines short"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step fade-in-scroll">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Visualize your mental shape</h3>
+                    <div class="step-visual">
+                        <div class="spider-preview">
+                            <canvas id="stepRadarChart" width="200" height="200"></canvas>
+                        </div>
+                        <div class="metric-labels">
+                            <span>Confidence</span>
+                            <span>Clarity</span>
+                            <span>Gratitude</span>
+                            <span>Resistance</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step fade-in-scroll">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Track weekly patterns</h3>
+                    <div class="step-visual">
+                        <div class="trend-mockup">
+                            <div class="trend-line">
+                                <svg width="200" height="60" viewBox="0 0 200 60">
+                                    <path d="M 0 50 L 40 45 L 80 35 L 120 30 L 160 25 L 200 20"
+                                          stroke="#7B9E9D"
+                                          stroke-width="2"
+                                          fill="none"
+                                          stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="trend-label">↑ Improving</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What Makes It Different -->
+    <section class="different">
+        <div class="container">
+            <h2 class="section-title">Not another journal.</h2>
+
+            <div class="features-grid">
+                <div class="feature fade-in-scroll">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <circle cx="16" cy="16" r="12" stroke="#7B9E9D" stroke-width="1.5"/>
+                            <path d="M16 10v6l4 4" stroke="#7B9E9D" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Structured emotional scoring</h3>
+                    <p>Consistent metrics across time, not random feelings.</p>
+                </div>
+
+                <div class="feature fade-in-scroll">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <path d="M4 16 L12 12 L20 18 L28 8" stroke="#7B9E9D" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+                    <h3>Pattern tracking over time</h3>
+                    <p>Notice trends you couldn't see day-to-day.</p>
+                </div>
+
+                <div class="feature fade-in-scroll">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect x="6" y="8" width="20" height="16" rx="2" stroke="#7B9E9D" stroke-width="1.5"/>
+                            <path d="M10 14h12M10 18h8" stroke="#7B9E9D" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Weekly reflective insights</h3>
+                    <p>AI observes patterns, not advice.</p>
+                </div>
+
+                <div class="feature fade-in-scroll">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <path d="M16 4v24M8 12l8-8 8 8M8 20l8 8 8-8" stroke="#7B9E9D" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>No advice. No noise.</h3>
+                    <p>Built for clarity, not motivation.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing">
+        <div class="container">
+            <div class="pricing-grid">
+                <div class="pricing-card free fade-in-scroll">
+                    <div class="pricing-header">
+                        <h3>Free</h3>
+                        <div class="price">$0</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>2 analyses per week</li>
+                        <li>Weekly reflection</li>
+                        <li>Daily mental shape visualization</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card pro fade-in-scroll">
+                    <div class="pricing-badge">Coming Soon</div>
+                    <div class="pricing-header">
+                        <h3>Pro</h3>
+                        <div class="price">$8<span>/month</span></div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>Unlimited analysis</li>
+                        <li>Monthly & multi-week trend tracking</li>
+                        <li>Pattern detection insights</li>
+                        <li>Historical insight archive</li>
+                        <li>Deeper stability metrics</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="container">
+            <div class="cta-content fade-in-scroll">
+                <h2>Start observing your patterns.</h2>
+                <button class="btn-primary large" id="finalCTA">Continue with Google</button>
+                <p class="cta-subtext">Free to start. No credit card required.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">Selfspeak</div>
+                <div class="footer-tagline">Self-awareness analytics</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="landing.js"></script>
+</body>
+</html>

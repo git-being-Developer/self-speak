@@ -94,11 +94,17 @@ body {
 }
 
 /* Main Content */
-.main-content {
+.main-content,
+.dashboard-content {
     max-width: 800px;
     margin: 0 auto;
     padding: 3rem 2rem;
     animation: fadeIn 0.6s ease;
+}
+
+/* Dashboard gets wider max-width */
+main.dashboard-content {
+    max-width: 1000px;
 }
 
 @keyframes fadeIn {
@@ -164,6 +170,13 @@ body {
 
 .journal-textarea:focus {
     color: #1A2F33;
+}
+
+.journal-textarea:disabled {
+    background: rgba(139, 157, 154, 0.03);
+    color: #8B9D9A;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .card-footer {
@@ -244,6 +257,24 @@ body {
 .btn-primary:hover {
     box-shadow: 0 6px 24px rgba(123, 158, 157, 0.35);
     transform: translateY(-2px);
+}
+
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+    background: rgba(139, 157, 154, 0.15) !important;
+    color: #B8C5C2 !important;
+}
+
+.btn:disabled:hover,
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .usage-text {
@@ -415,6 +446,81 @@ body {
     font-size: 1rem;
     color: #3D5A5C;
     font-weight: 500;
+}
+
+/* Alignment Score Card */
+.alignment-score-card {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, rgba(123, 158, 157, 0.08) 0%, rgba(184, 197, 194, 0.08) 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(139, 157, 154, 0.12);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.alignment-score-card:hover {
+    background: linear-gradient(135deg, rgba(123, 158, 157, 0.12) 0%, rgba(184, 197, 194, 0.12) 100%);
+    box-shadow: 0 6px 20px rgba(139, 157, 154, 0.1);
+    transform: translateY(-2px);
+}
+
+.alignment-score-title {
+    font-size: 0.875rem;
+    color: #8B9D9A;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+}
+
+.alignment-score-value {
+    font-size: 3.5rem;
+    font-weight: 300;
+    color: #3D5A5C;
+    line-height: 1;
+    margin-bottom: 0.75rem;
+    letter-spacing: -2px;
+}
+
+.alignment-score-subtext {
+    font-size: 0.875rem;
+    color: #8B9D9A;
+    line-height: 1.5;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Reflection Insight Card */
+.reflection-insight-card {
+    margin-top: 2rem;
+    padding: 1.75rem;
+    background: linear-gradient(135deg, rgba(123, 158, 157, 0.06) 0%, rgba(184, 197, 194, 0.06) 100%);
+    border-radius: 18px;
+    border: 1px solid rgba(139, 157, 154, 0.12);
+    transition: all 0.3s ease;
+}
+
+.reflection-insight-card:hover {
+    background: linear-gradient(135deg, rgba(123, 158, 157, 0.09) 0%, rgba(184, 197, 194, 0.09) 100%);
+    box-shadow: 0 4px 16px rgba(139, 157, 154, 0.08);
+}
+
+.reflection-insight-title {
+    font-size: 0.875rem;
+    color: #8B9D9A;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.875rem;
+}
+
+.reflection-insight-text {
+    font-size: 0.9375rem;
+    color: #5A7B7D;
+    line-height: 1.75;
+    font-weight: 400;
+    margin: 0;
 }
 
 /* Responsive Design */
