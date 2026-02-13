@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Reflection - Selfspeak</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <h1 class="logo">Selfspeak</h1>
+            <p class="tagline">Reflect. Align.</p>
+        </div>
+        <div class="nav-right">
+            <a href="/index.html" class="nav-link">Journal</a>
+            <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+            <span class="badge-free">Free</span>
+            <div class="user-avatar">
+                <img src="https://via.placeholder.com/40/8B9D9A/FFFFFF?text=U" alt="User Avatar" id="userAvatar">
+            </div>
+            <button class="btn-logout" id="logoutBtn" title="Logout">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M7 17H4a2 2 0 01-2-2V5a2 2 0 012-2h3M14 13l4-4m0 0l-4-4m4 4H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-content">
+        <!-- Loading Skeleton -->
+        <div id="loadingSkeleton" class="loading-skeleton">
+            <div class="skeleton-header">
+                <div class="skeleton-line skeleton-title"></div>
+                <div class="skeleton-line skeleton-subtitle"></div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton-circle"></div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+            </div>
+        </div>
+
+        <!-- No Data State -->
+        <div id="noDataState" class="no-data-state" style="display: none;">
+            <div class="empty-illustration">
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                    <circle cx="60" cy="60" r="40" stroke="#D4E0DE" stroke-width="2" stroke-dasharray="4 4"/>
+                    <path d="M40 60h40M60 40v40" stroke="#D4E0DE" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <h3>No Weekly Data Yet</h3>
+            <p>You haven't analyzed any journal entries this week.</p>
+            <p class="subtle">Write a journal entry and click "Analyze" to see your weekly reflection.</p>
+            <a href="/index.html" class="btn btn-primary" style="margin-top: 1.5rem;">Go to Journal</a>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent" style="display: none;">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">Weekly Reflection</h1>
+                <p class="dashboard-subtitle" id="weekRange">Loading...</p>
+            </div>
+
+            <!-- Weekly Average Radar Chart -->
+            <div class="dashboard-card fade-in">
+                <h2 class="card-title">Your Week at a Glance</h2>
+                <div class="chart-container-large">
+                    <canvas id="weeklyRadarChart" width="500" height="500"></canvas>
+                </div>
+            </div>
+
+            <!-- Line Charts -->
+            <div class="charts-row">
+                <div class="dashboard-card fade-in">
+                    <h3 class="card-subtitle">
+                        Confidence Trend
+                        <span class="trend-badge" id="confidenceTrend"></span>
+                    </h3>
+                    <div class="chart-container-line">
+                        <canvas id="confidenceLineChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <div class="dashboard-card fade-in">
+                    <h3 class="card-subtitle">
+                        Resistance Trend
+                        <span class="trend-badge" id="resistanceTrend"></span>
+                    </h3>
+                    <div class="chart-container-line">
+                        <canvas id="resistanceLineChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insight Card -->
+            <div class="dashboard-card insight-card fade-in">
+                <div class="insight-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2z" fill="#E8F4F3"/>
+                        <path d="M16 10v6M16 22h.01" stroke="#7B9E9D" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="insight-content">
+                    <h3 class="insight-title">This Week's Pattern</h3>
+                    <p class="insight-summary" id="insightSummary">Loading insight...</p>
+                    <div class="insight-question">
+                        <strong>Reflection:</strong>
+                        <p id="insightQuestion">Loading question...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="frontend-integration.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

@@ -66,12 +66,30 @@ class DailyAnalysisService:
             )
 
         # Step 3: Call AI service (Layer 1)
-        analysis_data = ai_service.analyze_daily_journal(journal_content)
+        # If this fails, exception is raised and usage is NOT incremented
+        try:
+            analysis_data = ai_service.analyze_daily_journal(journal_content)
+        except ValueError as e:
+            # AI call failed, do not increment usage
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Analysis failed: {str(e)}"
+            )
 
         # Step 4: Store analysis
-        stored_analysis = self._store_analysis(user_id, journal_id, analysis_data)
+        # If this fails, exception is raised and usage is NOT incremented
+        try:
+            stored_analysis = self._store_analysis(user_id, journal_id, analysis_data)
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Storage failed, do not increment usage
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to store analysis: {str(e)}"
+            )
 
-        # Step 5: Update usage
+        # Step 5: Update usage (only if everything succeeded)
         self._increment_usage(user_id, week_start, current_usage)
 
         return stored_analysis

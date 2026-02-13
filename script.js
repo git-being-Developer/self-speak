@@ -238,19 +238,24 @@ function displayAnalysis(analysis) {
 }
 
 function updateMetadataBadges(analysis) {
+    if (!analysis) return;
+
     const badges = document.querySelectorAll('.badge-metadata');
 
-    if (badges[0]) {
-        badges[0].querySelector('.badge-value').textContent = analysis.dominant_emotion || 'N/A';
+    // Guard each badge update
+    if (badges[0] && badges[0].querySelector('.badge-value')) {
+        badges[0].querySelector('.badge-value').textContent = analysis.dominant_emotion || 'Reflective';
     }
-    if (badges[1]) {
-        badges[1].querySelector('.badge-value').textContent = analysis.overall_tone || 'N/A';
+    if (badges[1] && badges[1].querySelector('.badge-value')) {
+        badges[1].querySelector('.badge-value').textContent = analysis.overall_tone || 'calm';
     }
-    if (badges[2]) {
-        badges[2].querySelector('.badge-value').textContent = analysis.goal_present ? 'Yes' : 'No';
+    if (badges[2] && badges[2].querySelector('.badge-value')) {
+        const goalValue = analysis.goal_present !== undefined ? (analysis.goal_present ? 'Yes' : 'No') : 'Unknown';
+        badges[2].querySelector('.badge-value').textContent = goalValue;
     }
-    if (badges[3]) {
-        badges[3].querySelector('.badge-value').textContent = analysis.self_doubt_present ? 'Present' : 'Minimal';
+    if (badges[3] && badges[3].querySelector('.badge-value')) {
+        const doubtValue = analysis.self_doubt_present !== undefined ? (analysis.self_doubt_present ? 'Present' : 'Minimal') : 'Unknown';
+        badges[3].querySelector('.badge-value').textContent = doubtValue;
     }
 }
 

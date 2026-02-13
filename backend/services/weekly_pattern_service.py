@@ -50,24 +50,15 @@ class WeeklyPatternService:
             {
                 "weekly_insight": {...},
                 "weekly_averages": {...},
-                "trend_data": {...}
+                "trend_data": {...},
+                "daily_scores": [...]
             }
         """
         # Step 1: Determine week start
         if not week_start_date:
             week_start_date = self._get_current_week_start()
 
-        # Step 2: Check if insight already exists (idempotent)
-        existing_insight = self._get_existing_insight(user_id, week_start_date)
-        if existing_insight:
-            # Return cached insight with computed data
-            return self._build_response_with_trends(
-                user_id,
-                week_start_date,
-                existing_insight
-            )
-
-        # Step 3: Fetch all daily analyses for the week
+        # Step 2: Fetch all daily analyses for the week
         daily_analyses = self._fetch_week_analyses(user_id, week_start_date)
 
         if not daily_analyses:
@@ -76,11 +67,42 @@ class WeeklyPatternService:
                 detail="No journal analyses found for this week"
             )
 
+        # Step 3: Check if insight exists and if it needs regeneration
+        existing_insight = self._get_existing_insight(user_id, week_start_date)
+
+        if existing_insight:
+            # Check if there are newer analyses than the cached insight
+            insight_created_at = datetime.fromisoformat(existing_insight["created_at"].replace('Z', '+00:00'))
+            latest_analysis_date = max(
+                datetime.fromisoformat(a["created_at"].replace('Z', '+00:00'))
+                for a in daily_analyses
+            )
+
+            # If no new analyses since insight was created, return cached version
+            if latest_analysis_date <= insight_created_at:
+                return self._build_response_with_trends(
+                    user_id,
+                    week_start_date,
+                    existing_insight,
+                    daily_analyses
+                )
+
+            # Otherwise, regenerate (delete old insight first)
+            print(f"New analyses detected, regenerating weekly insight for {week_start_date}")
+            self._delete_insight(user_id, week_start_date)
+
         # Step 4: Aggregate metadata and compute trends
         aggregated_metadata = self._aggregate_daily_metadata(daily_analyses)
 
         # Step 5: Call AI service (Layer 2) with aggregated data only
-        ai_response = ai_service.generate_weekly_insight(aggregated_metadata)
+        try:
+            ai_response = ai_service.generate_weekly_insight(aggregated_metadata)
+        except ValueError as e:
+            # AI call failed, return error without storing
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate weekly insight: {str(e)}"
+            )
 
         # Step 6: Store weekly insight
         stored_insight = self._store_weekly_insight(
@@ -94,6 +116,7 @@ class WeeklyPatternService:
             user_id,
             week_start_date,
             stored_insight,
+            daily_analyses,
             aggregated_metadata
         )
 
@@ -114,6 +137,16 @@ class WeeklyPatternService:
         ).eq("week_start_date", week_start_date).execute()
 
         return response.data[0] if response.data else None
+
+    def _delete_insight(
+        self,
+        user_id: str,
+        week_start_date: str
+    ):
+        """Delete existing weekly insight to allow regeneration."""
+        self.supabase.table("weekly_insights").delete().eq(
+            "user_id", user_id
+        ).eq("week_start_date", week_start_date).execute()
 
     def _fetch_week_analyses(
         self,
@@ -170,8 +203,15 @@ class WeeklyPatternService:
         emotions = [a.get("dominant_emotion") for a in daily_analyses if a.get("dominant_emotion")]
         dominant_emotion = max(set(emotions), key=emotions.count) if emotions else "Reflective"
 
+        # Compute goal presence and self-doubt rates
+        goal_count = sum(1 for a in daily_analyses if a.get("goal_present", False))
+        doubt_count = sum(1 for a in daily_analyses if a.get("self_doubt_present", False))
+
         return {
             "entry_count": total_entries,
+            "avg_confidence": round(avg_confidence, 1),
+            "avg_resistance": round(avg_resistance, 1),
+            "avg_gratitude": round(avg_gratitude, 1),
             "avg_scores": {
                 "confidence": round(avg_confidence, 1),
                 "abundance": round(avg_abundance, 1),
@@ -180,7 +220,12 @@ class WeeklyPatternService:
                 "resistance": round(avg_resistance, 1),
             },
             "trends": trends,
+            "confidence_trend": trends.get("confidence", "stable"),
+            "resistance_trend": trends.get("resistance", "stable"),
+            "gratitude_trend": trends.get("gratitude", "stable"),
             "dominant_emotion": dominant_emotion,
+            "goal_presence_rate": round(goal_count / total_entries, 2),
+            "self_doubt_rate": round(doubt_count / total_entries, 2),
         }
 
     def _compute_trends(
@@ -264,16 +309,38 @@ class WeeklyPatternService:
         user_id: str,
         week_start_date: str,
         insight: Dict[str, Any],
+        daily_analyses: Optional[List[Dict[str, Any]]] = None,
         aggregated_metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Build complete response with insight and trend data.
-        If aggregated_metadata not provided, recompute from stored analyses.
+        Build complete response with insight, trend data, and daily scores for graphing.
         """
-        if not aggregated_metadata:
-            # Recompute from stored analyses
+        # Fetch daily analyses if not provided
+        if not daily_analyses:
             daily_analyses = self._fetch_week_analyses(user_id, week_start_date)
+
+        # Compute aggregated metadata if not provided
+        if not aggregated_metadata:
             aggregated_metadata = self._aggregate_daily_metadata(daily_analyses)
+
+        # Build daily scores array for graph rendering
+        daily_scores = []
+        for analysis in daily_analyses:
+            # Get the journal entry date from the nested object
+            entry_date = analysis.get("journal_entries", {}).get("entry_date") if isinstance(analysis.get("journal_entries"), dict) else None
+
+            daily_scores.append({
+                "date": entry_date or analysis.get("created_at", "")[:10],
+                "confidence": analysis.get("confidence_score", 0),
+                "abundance": analysis.get("abundance_score", 0),
+                "clarity": analysis.get("clarity_score", 0),
+                "gratitude": analysis.get("gratitude_score", 0),
+                "resistance": analysis.get("resistance_score", 0),
+                "emotion": analysis.get("dominant_emotion", ""),
+            })
+
+        # Sort by date
+        daily_scores.sort(key=lambda x: x["date"])
 
         return {
             "weekly_insight": insight,
@@ -285,6 +352,7 @@ class WeeklyPatternService:
                 "dominant_emotion": insight["dominant_week_emotion"],
             },
             "entry_count": aggregated_metadata.get("entry_count", 0),
+            "daily_scores": daily_scores
         }
 
 

@@ -1,25 +1,42 @@
 """
-AI Service - Placeholder for actual AI integration
-Provides mock responses for daily and weekly analysis
+AI Service - OpenAI Integration for Daily and Weekly Analysis
+Strict JSON output with validation and retry logic
 """
 
-from typing import Dict, Any, List
-import random
+from typing import Dict, Any, Optional, Tuple
+import json
+import os
+from openai import OpenAI
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class AIService:
     """
     Isolated AI service for both daily and weekly analysis.
-    Currently returns mock data - replace with actual LLM calls later.
+    Uses OpenAI Chat Completions API with strict JSON mode.
     """
 
-    @staticmethod
-    def analyze_daily_journal(journal_content: str) -> Dict[str, Any]:
+    def __init__(self):
+        """Initialize OpenAI client."""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY must be set in environment variables")
+
+        self.client = OpenAI(api_key=api_key)
+        self.model = "gpt-5.1"  # Cost-efficient stable model
+        self.temperature = 0.4  # Consistency over creativity
+
+    def analyze_daily_journal(self, journal_content: str) -> Dict[str, Any]:
         """
         Layer 1: Daily Analysis
 
-        Analyzes a single journal entry and returns structured metadata.
+        Analyzes a single journal entry using OpenAI.
+        Enforces strict JSON output with validation.
+        Retries once on parsing failure.
 
         Args:
             journal_content: Raw journal text
@@ -27,29 +44,52 @@ class AIService:
         Returns:
             Structured analysis with scores and metadata
 
-        TODO: Replace with actual AI call (OpenAI, Anthropic, etc.)
+        Raises:
+            ValueError: If AI response is invalid after retry
         """
-        # Placeholder: Generate realistic mock data
-        emotions = ["Hopeful", "Calm", "Anxious", "Grateful", "Reflective",
-                   "Uncertain", "Motivated", "Peaceful", "Overwhelmed"]
-        tones = ["calm", "anxious", "driven", "scattered"]
-        time_horizons = ["short", "long", "vague"]
+        system_prompt = """You are analyzing a personal journal entry.
+Evaluate language and tone only.
+Do not provide therapy, advice, or predictions.
+Return conservative scores.
+Output valid JSON only."""
 
-        return {
-            "confidence_score": random.randint(45, 95),
-            "abundance_score": random.randint(40, 90),
-            "clarity_score": random.randint(50, 95),
-            "gratitude_score": random.randint(55, 98),
-            "resistance_score": random.randint(20, 65),
-            "dominant_emotion": random.choice(emotions),
-            "overall_tone": random.choice(tones),
-            "goal_present": random.choice([True, False]),
-            "self_doubt_present": random.choice([True, False]),
-            "time_horizon": random.choice(time_horizons),
-        }
+        user_prompt = f"""Analyze this journal entry and return:
+- confidence (0-100): How confident/assured the writer appears
+- abundance (0-100): Sense of having enough/plenty
+- clarity (0-100): Clear thinking and direction
+- gratitude (0-100): Expressions of thankfulness
+- resistance (0-100): Opposition to change or reality
+- dominant_emotion (1 word): Primary emotion detected
+- goal_present (true/false): Any goals or intentions mentioned
+- self_doubt_present (true/false): Self-questioning or uncertainty
+- time_horizon (short/long/vague): Planning timeframe
+- overall_tone (calm/anxious/driven/scattered): Overall emotional tone
 
-    @staticmethod
-    def generate_weekly_insight(aggregated_metadata: Dict[str, Any]) -> Dict[str, Any]:
+Journal:
+\"\"\"
+{journal_content}
+\"\"\"
+
+Return JSON only."""
+
+        # First attempt
+        response_data, error = self._call_openai_with_retry(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            expected_keys=[
+                "confidence", "abundance", "clarity", "gratitude", "resistance",
+                "dominant_emotion", "goal_present", "self_doubt_present",
+                "time_horizon", "overall_tone"
+            ]
+        )
+
+        if error:
+            raise ValueError(f"AI analysis failed: {error}")
+
+        # Validate and normalize response
+        return self._validate_daily_analysis(response_data)
+
+    def generate_weekly_insight(self, aggregated_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
         Layer 2: Weekly Pattern Analysis
 
@@ -59,46 +99,166 @@ class AIService:
         Args:
             aggregated_metadata: Pre-computed trends and averages
                 {
-                    "avg_scores": {...},
-                    "trends": {"confidence": "up", ...},
+                    "avg_confidence": 75.5,
+                    "avg_resistance": 34.2,
+                    "avg_gratitude": 82.1,
+                    "confidence_trend": "up",
+                    "resistance_trend": "stable",
+                    "gratitude_trend": "up",
                     "dominant_emotion": "Hopeful",
+                    "goal_presence_rate": 0.6,
+                    "self_doubt_rate": 0.4,
                     "entry_count": 5
                 }
 
         Returns:
             Weekly insight with reflective language
 
-        TODO: Replace with actual AI call that generates personalized reflections
+        Raises:
+            ValueError: If AI response is invalid after retry
         """
-        # Extract trend data
-        trends = aggregated_metadata.get("trends", {})
-        avg_scores = aggregated_metadata.get("avg_scores", {})
+        # Ensure minimum data - even 1 entry can provide insight
         entry_count = aggregated_metadata.get("entry_count", 0)
-        dominant_emotion = aggregated_metadata.get("dominant_emotion", "Reflective")
+        if entry_count < 1:
+            return {
+                "summary_text": "No journal entries analyzed this week yet. Start writing and analyzing your journals to unlock weekly reflections.",
+                "dominant_week_emotion": "Reflective",
+                "reflection_question": "What's on your mind today?"
+            }
 
-        # Placeholder: Generate mock reflective content
-        summaries = [
-            f"This week showed {entry_count} days of reflection. Your {dominant_emotion.lower()} energy was prominent.",
-            f"Over {entry_count} entries, you demonstrated growing self-awareness and emotional clarity.",
-            f"This week's {entry_count} reflections reveal a journey toward greater understanding.",
-        ]
+        # Adjust messaging for low entry counts
+        if entry_count == 1:
+            context_note = "Based on your single journal entry this week, "
+        elif entry_count == 2:
+            context_note = "Based on your two journal entries this week, "
+        else:
+            context_note = f"Based on your {entry_count} journal entries this week, "
 
-        questions = [
-            "What small win from this week deserves more celebration?",
-            "Which emotion this week was trying to teach you something?",
-            "What pattern emerged that you'd like to explore further?",
-            "How did your perspective shift from Monday to today?",
-            "What strength showed up that you might have overlooked?",
-        ]
+        system_prompt = """You analyze structured emotional trend data from a journaling application.
+Do not provide therapy or predictions.
 
-        return {
-            "summary_text": random.choice(summaries),
-            "confidence_trend": trends.get("confidence", "stable"),
-            "resistance_trend": trends.get("resistance", "stable"),
-            "gratitude_trend": trends.get("gratitude", "stable"),
-            "dominant_week_emotion": dominant_emotion,
-            "reflection_question": random.choice(questions),
-        }
+Return JSON only."""
+
+        # Build structured data summary
+        data_summary = json.dumps(aggregated_metadata, indent=2)
+
+        user_prompt = f"""Here is aggregated weekly data:
+{data_summary}
+
+Return:
+- summary_text (3-5 sentences describing observable patterns)
+- dominant_week_emotion (single word for the week's primary emotion)
+- reflection_question (1 open-ended reflective question based on trends)
+
+Return JSON only."""
+
+        # Call OpenAI with retry
+        response_data, error = self._call_openai_with_retry(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            expected_keys=["summary_text", "dominant_week_emotion", "reflection_question"]
+        )
+
+        if error:
+            raise ValueError(f"Weekly insight generation failed: {error}")
+
+        # Add trend fields from aggregated metadata (already computed)
+        response_data["confidence_trend"] = aggregated_metadata.get("confidence_trend", "stable")
+        response_data["resistance_trend"] = aggregated_metadata.get("resistance_trend", "stable")
+        response_data["gratitude_trend"] = aggregated_metadata.get("gratitude_trend", "stable")
+
+        return response_data
+
+    def _call_openai_with_retry(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        expected_keys: list,
+        max_retries: int = 1
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        """
+        Call OpenAI API with strict JSON mode and retry logic.
+
+        Returns:
+            Tuple of (parsed_data, error_message)
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    temperature=self.temperature,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                )
+
+                # Extract content
+                content = response.choices[0].message.content
+
+                # Parse JSON
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError as e:
+                    if attempt < max_retries:
+                        print(f"JSON parse error on attempt {attempt + 1}, retrying...")
+                        continue
+                    return None, f"Invalid JSON after {max_retries + 1} attempts: {str(e)}"
+
+                # Validate expected keys
+                missing_keys = [key for key in expected_keys if key not in data]
+                if missing_keys:
+                    if attempt < max_retries:
+                        print(f"Missing keys {missing_keys} on attempt {attempt + 1}, retrying...")
+                        continue
+                    return None, f"Missing required keys: {missing_keys}"
+
+                # Success
+                return data, None
+
+            except Exception as e:
+                if attempt < max_retries:
+                    print(f"API error on attempt {attempt + 1}, retrying: {str(e)}")
+                    continue
+                return None, f"OpenAI API error: {str(e)}"
+
+        return None, "Max retries exceeded"
+
+    def _validate_daily_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate and normalize daily analysis response.
+        Ensures scores are in valid ranges and types are correct.
+        """
+        validated = {}
+
+        # Validate numeric scores (0-100)
+        for key in ["confidence", "abundance", "clarity", "gratitude", "resistance"]:
+            score = data.get(key, 50)
+            try:
+                score = int(score)
+                score = max(0, min(100, score))  # Clamp to 0-100
+            except (ValueError, TypeError):
+                score = 50  # Default fallback
+            validated[f"{key}_score"] = score
+
+        # Validate string fields
+        validated["dominant_emotion"] = str(data.get("dominant_emotion", "Reflective"))[:50]
+
+        # Validate enum fields
+        valid_tones = ["calm", "anxious", "driven", "scattered"]
+        tone = data.get("overall_tone", "calm").lower()
+        validated["overall_tone"] = tone if tone in valid_tones else "calm"
+
+        valid_horizons = ["short", "long", "vague"]
+        horizon = data.get("time_horizon", "vague").lower()
+        validated["time_horizon"] = horizon if horizon in valid_horizons else "vague"
+
+        # Validate boolean fields
+        validated["goal_present"] = bool(data.get("goal_present", False))
+        validated["self_doubt_present"] = bool(data.get("self_doubt_present", False))
+
+        return validated
 
 
 # Singleton instance
