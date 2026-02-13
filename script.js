@@ -58,7 +58,7 @@ async function checkAuth() {
 
     if (!session) {
         console.log('No active session, redirecting to login...');
-        window.location.href = '/login.html';
+        window.location.href = '/landing.html';
         return null;
     }
 
