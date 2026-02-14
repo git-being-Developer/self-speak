@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -8,6 +9,7 @@ import os
 import json
 from supabase import create_client, Client
 import random
+from pathlib import Path
 
 # Import authentication utilities
 from auth_utils import security, get_current_user_id, get_current_user, supabase
@@ -633,6 +635,17 @@ async def get_subscription_status(
         "renewal_date": subscription.get("renewal_date"),
         "started_at": subscription.get("started_at")
     }
+
+
+# ============================================
+# Serve Frontend Static Files
+# ============================================
+
+# Mount frontend files (for single-service deployment on Render/Railway)
+frontend_path = Path(__file__).parent.parent
+if (frontend_path / "landing.html").exists():
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+    print("✅ Serving frontend from backend (single service mode)")
 
 
 if __name__ == "__main__":

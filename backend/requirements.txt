@@ -9,4 +9,3 @@ httpx==0.26.0
 PyJWT==2.8.0
 requests==2.31.0
 openai==1.54.0
-mangum==0.17.0

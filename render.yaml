@@ -1,0 +1,29 @@
+services:
+  # Backend API Service
+  - type: web
+    name: selfspeak-api
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LEMON_SQUEEZY_API_KEY
+        sync: false
+      - key: LEMON_SQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LEMON_SQUEEZY_STORE_ID
+        sync: false
+      - key: LEMON_MONTHLY_VARIANT_ID
+        sync: false
+      - key: LEMON_ANNUAL_VARIANT_ID
+        sync: false

@@ -1,10 +1,10 @@
 // API Integration for Selfspeak Frontend
-// Backend runs as Vercel serverless function on same domain
+// Backend serves frontend - same domain, zero latency!
 
-// Use same domain for API calls - Vercel routes API requests to serverless backend
+// Use same domain for API calls
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000'  // Local development (run backend separately)
-    : window.location.origin;   // Production (Vercel serverless - same domain)
+    : window.location.origin;   // Production (backend serves frontend - same domain!)
 
 // API Client Class
 class SelfSpeakAPI {
