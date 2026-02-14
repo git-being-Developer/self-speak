@@ -1,13 +1,17 @@
 // API Integration for Selfspeak Frontend
-// Add this file to your frontend to connect with the backend
+// Backend runs as Vercel serverless function on same domain
 
-const API_BASE_URL = 'http://localhost:8000';
+// Use same domain for API calls - Vercel routes API requests to serverless backend
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'  // Local development (run backend separately)
+    : window.location.origin;   // Production (Vercel serverless - same domain)
 
 // API Client Class
 class SelfSpeakAPI {
     constructor() {
         this.baseURL = API_BASE_URL;
         this.token = null;
+        console.log('🔗 API Base URL:', this.baseURL);
     }
 
     // Set JWT token (from Supabase authentication)
