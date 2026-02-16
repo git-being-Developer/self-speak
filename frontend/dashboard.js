@@ -414,7 +414,7 @@ async function proceedToCheckout(planType) {
         // Use separate backend deployment
         const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:8000'
-            : 'https://self-speak-production.up.railway.app/';  // UPDATE WITH YOUR BACKEND URL!
+            : 'https://self-speak-production.up.railway.app';  // UPDATE WITH YOUR BACKEND URL!
 
         // Create checkout session with backend
         const response = await fetch(`${apiBaseUrl}/billing/create-checkout`, {
