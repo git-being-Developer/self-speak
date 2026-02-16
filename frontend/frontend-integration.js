@@ -53,7 +53,7 @@ class SelfSpeakAPI {
 
             return data;
         } catch (error) {
-            console.error(`API Error (${endpoint}):`, error);
+            console.error(`API Error (${url}):`, error);
             throw error;
         }
     }
