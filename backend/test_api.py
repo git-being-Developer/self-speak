@@ -5,9 +5,8 @@ Run with: pytest test_api.py -v
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
-from main import app
-from datetime import datetime
+from unittest.mock import patch
+from frontend.main import app
 
 client = TestClient(app)
 

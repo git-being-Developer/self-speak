@@ -3,40 +3,32 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb"
-      }
+      "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/journal/(.*)",
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/dashboard/(.*)",
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/billing/(.*)",
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/auth/(.*)",
+      "src": "/(journal|dashboard|billing|auth)/(.*)",
       "dest": "api/index.py"
     },
     {
       "src": "/",
-      "dest": "/landing.html"
+      "dest": "/frontend/landing.html"
     },
     {
       "src": "/(.*\\.(html|css|js|json|png|jpg|svg|ico))",
-      "dest": "/$1"
+      "dest": "/frontend/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/frontend/$1"
     }
-  ]
+  ],
+  "env": {
+    "PYTHON_VERSION": "3.11"
+  }
 }

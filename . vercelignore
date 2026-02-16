@@ -1,0 +1,16 @@
+# Ignore files for Vercel deployment
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/test_*.py
+backend/TESTING_GUIDE.md
+backend/README.md
+.git/
+.idea/
+*.pyc
+*.pyo
+*.pyd
+.Python
+__pycache__/
+*.md
+!README.md
