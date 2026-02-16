@@ -4,7 +4,7 @@
 // Use same domain for API calls
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000'  // Local development (run backend separately)
-    : window.location.origin;   // Production (backend serves frontend - same domain!)
+    : 'https://self-speak-production.up.railway.app/';   // Production - UPDATE WITH YOUR RAILWAY/RENDER URL!
 
 // API Client Class
 class SelfSpeakAPI {

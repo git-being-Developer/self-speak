@@ -411,10 +411,10 @@ async function proceedToCheckout(planType) {
             btn.textContent = 'Creating checkout...';
         });
 
-        // Use same domain - Vercel routes to serverless backend
+        // Use separate backend deployment
         const apiBaseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:8000'
-            : window.location.origin;
+            : 'https://self-speak-production.up.railway.app/';  // UPDATE WITH YOUR BACKEND URL!
 
         // Create checkout session with backend
         const response = await fetch(`${apiBaseUrl}/billing/create-checkout`, {
